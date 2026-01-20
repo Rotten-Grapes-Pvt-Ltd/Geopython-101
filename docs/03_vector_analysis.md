@@ -401,6 +401,7 @@ Understanding spatial relationships is crucial for geospatial analysis. Here's a
 ### Point-in-Polygon Operations
 
 ```python
+
 # Find which country each city belongs to
 cities_with_countries = gpd.sjoin(cities, world, how='left', predicate='within')
 
