@@ -137,6 +137,11 @@ cities = inspect_geodataframe(cities, "Cities")
 
 ```python
 # Filter by single condition
+
+# Just to handle large number
+import pandas as pd
+pd.options.display.float_format = '{:,.0f}'.format
+
 large_countries = world[world['POP_EST'] > 100_000_000]
 print(f"Countries with >100M people: {len(large_countries)}")
 print(large_countries[['NAME', 'POP_EST']].sort_values('POP_EST', ascending=False))
@@ -146,7 +151,7 @@ large_rich_countries = world[
     (world['POP_EST'] > 50_000_000) & 
     (world['GDP_MD'] > 1_000_000)
 ]
-print(f"\nLarge & wealthy countries: {len(large_rich_countries)}")
+print(f"\nLarge (50M) & wealthy countries (1M GDP): {len(large_rich_countries)}")
 
 # Filter by continent
 asian_countries = world[world['REGION_UN'] == 'Asia']
@@ -168,12 +173,15 @@ asian_countries.to_file(
 
 # Visualize Asian countries
 import matplotlib.pyplot as plt
-
-ax = asian_countries.plot(
-    figsize=(10, 8),
+fig, ax = plt.subplots(figsize=(10, 8))
+asian_countries.plot(
+    ax=ax,
     color="lightgreen",
     edgecolor="black"
 )
+
+ax.set_title("Asian Countries")
+plt.show()
 
 ax.set_title("Asian Countries")
 plt.show()
@@ -401,6 +409,9 @@ city_country_check = cities_with_countries[['city', 'NAME']].copy()
 
 print(city_country_check.head(10))
 
+# city_country_check = city_country_check.rename(
+#     columns={'NAME': 'country'}
+# )
 # Count cities per country
 cities_per_country = city_country_check['NAME'].value_counts()
 print(f"\nTop 10 countries by number of major cities:")

@@ -227,17 +227,17 @@ usa = world[world['NAME'] == 'United States of America'].iloc[0]
 print(f"USA geometry type: {usa.geometry.geom_type}")
 print(f"USA bounds: {usa.geometry.bounds}")
 
-# Debug: Print columns of cities GeoDataFrame
-print(cities[['name', "admin"]].head())
 
+print(f"Cities columns: {list(cities.columns)}")
+print(cities[['city', "admin_name"]].head())
 # Get a specific administrative division (e.g., a state/province)
-sf_area = cities[cities['name'] == 'North Dakota'].iloc[0]
-print(f"California geometry type: {sf_area.geometry.geom_type}")
-print(f"California bounds: {sf_area.geometry.bounds}")
+sf_area = cities[cities['city'] == 'Delhi'].iloc[0]
+print(f"Delhi geometry type: {sf_area.geometry.geom_type}")
+print(f"Delhi bounds: {sf_area.geometry.bounds}")
 
 # Check if geometries are valid
 print(f"USA geometry is valid: {usa.geometry.is_valid}")
-print(f"California geometry is valid: {sf_area.geometry.is_valid}")
+print(f"Delhi geometry is valid: {sf_area.geometry.is_valid}")
 ```
 
 ## Quick Visualization
@@ -250,13 +250,13 @@ fig, ax = plt.subplots(1, 1, figsize=(15, 10))
 world.plot(ax=ax, color='lightblue', edgecolor='black', linewidth=0.5)
 
 # Plot cities (administrative divisions)
-cities.plot(ax=ax, color='red', markersize=20, alpha=0.7)
+# cities.plot(ax=ax, color='red', markersize=20, alpha=0.7)
 
-# Plot the specific administrative area (California) in green
-cities[cities['name'] == 'California'].plot(ax=ax, color='green', edgecolor='black', linewidth=2)
+# Plot the specific administrative area (India) in green
+cities[cities['country'] == 'India'].plot(ax=ax, color='green', markersize=5, alpha=0.7)
 
-# Customize the map
-ax.set_title('World Countries and Major Cities', fontsize=16, fontweight='bold')
+# Set the title
+ax.set_title('World Countries and Cities in India', fontsize=16, fontweight='bold')
 ax.set_xlabel('Longitude')
 ax.set_ylabel('Latitude')
 
