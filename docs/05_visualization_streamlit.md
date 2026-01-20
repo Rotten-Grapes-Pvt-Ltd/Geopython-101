@@ -23,8 +23,11 @@ import warnings
 warnings.filterwarnings('ignore')
 
 # Load sample data
-world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
-cities = gpd.read_file(gpd.datasets.get_path('naturalearth_cities'))
+import geopandas as gpd
+
+world=gpd.read_file("/content/countries.zip")
+states=gpd.read_file("/content/states.zip")
+cities=gpd.read_file("/content/city.geojson")
 
 print("=== DATA LOADED ===")
 print(f"World countries: {len(world)}")
@@ -86,7 +89,7 @@ fig, ax = plt.subplots(1, 1, figsize=(15, 10))
 
 # Plot with population-based colors
 world.plot(
-    column='pop_est',
+    column='POP_EST',
     ax=ax,
     cmap='YlOrRd',
     edgecolor='black',
@@ -110,8 +113,14 @@ plt.show()
 
 ```python
 # Focus on Europe
-europe = world[world['continent'] == 'Europe']
-europe_cities = cities[cities['continent'] == 'Europe']
+print("Available columns in cities:", cities.columns)
+europe = world[world['REGION_UN'] == 'Europe']
+
+# Get a list of European country names from the 'europe' GeoDataFrame
+european_country_names = europe['NAME'].unique().tolist()
+
+# Filter cities to include only those within European countries
+europe_cities = cities[cities['country'].isin(european_country_names)]
 
 fig, ax = plt.subplots(1, 1, figsize=(12, 10))
 
@@ -122,9 +131,9 @@ europe.plot(ax=ax, color='lightgreen', edgecolor='black', linewidth=0.5)
 europe_cities.plot(ax=ax, color='red', markersize=50, alpha=0.8)
 
 # Add city labels for major cities
-major_cities = europe_cities[europe_cities['pop_max'] > 2000000]
+major_cities = europe_cities[europe_cities['population'] > 2000000] # Use 'population' instead of 'POP_EST' for cities
 for idx, city in major_cities.iterrows():
-    ax.annotate(city['name'], 
+    ax.annotate(city['city'], # Use 'city' instead of 'NAME' for city labels
                 (city.geometry.x, city.geometry.y),
                 xytext=(5, 5), textcoords='offset points',
                 fontsize=8, fontweight='bold')
@@ -392,7 +401,7 @@ m = leafmap.Map(center=[20, 0], zoom=2, height='800px')
 # Add styled world map
 m.add_gdf(
     world,
-    column='pop_est',
+    column='POP_EST',
     layer_name='World Population',
     cmap='YlOrRd',
     legend_title='Population Estimate',

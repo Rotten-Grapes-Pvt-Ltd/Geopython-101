@@ -52,18 +52,27 @@ graph LR
 
 ## Vector Geometry Types
 
+### Setting Up
+
+```python
+from shapely.geometry import Point, LineString, Polygon
+import matplotlib.pyplot as plt
+```
+
 ### Points
 - **Single coordinate pair** (x, y)
 - Represent discrete locations
 - Examples: cities, weather stations, GPS locations
 
 ```python
-# Point examples
-cities = [
-    {"name": "San Francisco", "coordinates": [-122.4194, 37.7749]},
-    {"name": "New York", "coordinates": [-74.0060, 40.7128]},
-    {"name": "London", "coordinates": [-0.1276, 51.5074]}
-]
+# Create a Point
+p = Point(2, 3)
+
+x, y = p.xy
+plt.plot(x, y, 'ro')
+plt.title("Point")
+plt.grid()
+plt.show()
 ```
 
 ### Lines (LineStrings)
@@ -72,13 +81,14 @@ cities = [
 - Examples: roads, rivers, flight paths
 
 ```python
-# Line example - simplified road
-highway_101 = [
-    [-122.4194, 37.7749],  # San Francisco
-    [-122.0822, 37.4419],  # Palo Alto
-    [-121.8863, 37.3382],  # San Jose
-    [-121.2944, 36.6777]   # Salinas
-]
+# Create a LineString
+line = LineString([(1, 1), (4, 2), (6, 5)])
+
+x, y = line.xy
+plt.plot(x, y, 'b-')
+plt.title("LineString")
+plt.grid()
+plt.show()
 ```
 
 ### Polygons
@@ -87,10 +97,14 @@ highway_101 = [
 - Examples: countries, lakes, building footprints
 
 ```python
-# Polygon example - simplified country boundary
-simple_country = [
-    [-10, 50], [-10, 60], [2, 60], [2, 50], [-10, 50]  # Closed loop
-]
+# Create a Polygon
+poly = Polygon([(2, 1), (6, 1), (7, 4), (4, 6), (2, 4)])
+
+x, y = poly.exterior.xy
+plt.fill(x, y, alpha=0.5, color='green')
+plt.title("Polygon")
+plt.grid()
+plt.show()
 ```
 
 ## Attribute Tables
@@ -179,17 +193,22 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 
 # Load Natural Earth data (comes with GeoPandas)
-world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
-cities = gpd.read_file(gpd.datasets.get_path('naturalearth_cities'))
+import geopandas as gpd
+
+world=gpd.read_file("/content/countries.zip")
+states=gpd.read_file("/content/states.zip")
+cities=gpd.read_file("/content/city.geojson")
 
 # Inspect the data
 print("=== WORLD COUNTRIES ===")
 print(f"Shape: {world.shape}")  # (rows, columns)
 print(f"CRS: {world.crs}")
 print(f"Geometry types: {world.geometry.type.unique()}")
+print(f"Available columns for world: {list(world.columns)}")
 
 print("\n=== FIRST FEW COUNTRIES ===")
-print(world[['name', 'continent', 'pop_est']].head())
+# Corrected column names to 'NAME' and 'CONTINENT'
+print(world[['NAME', 'CONTINENT','geometry']].head())
 
 print("\n=== CITIES ===")
 print(f"Shape: {cities.shape}")
@@ -204,17 +223,21 @@ print(f"Geometry types: {cities.geometry.type.unique()}")
 print("=== GEOMETRY DETAILS ===")
 
 # Get a specific country
-usa = world[world['name'] == 'United States of America'].iloc[0]
+usa = world[world['NAME'] == 'United States of America'].iloc[0]
 print(f"USA geometry type: {usa.geometry.geom_type}")
 print(f"USA bounds: {usa.geometry.bounds}")
 
-# Get a specific city
-sf = cities[cities['name'] == 'San Francisco'].iloc[0]
-print(f"San Francisco coordinates: {sf.geometry.x}, {sf.geometry.y}")
+# Debug: Print columns of cities GeoDataFrame
+print(cities[['name', "admin"]].head())
+
+# Get a specific administrative division (e.g., a state/province)
+sf_area = cities[cities['name'] == 'North Dakota'].iloc[0]
+print(f"California geometry type: {sf_area.geometry.geom_type}")
+print(f"California bounds: {sf_area.geometry.bounds}")
 
 # Check if geometries are valid
 print(f"USA geometry is valid: {usa.geometry.is_valid}")
-print(f"SF geometry is valid: {sf.geometry.is_valid}")
+print(f"California geometry is valid: {sf_area.geometry.is_valid}")
 ```
 
 ## Quick Visualization
@@ -226,8 +249,11 @@ fig, ax = plt.subplots(1, 1, figsize=(15, 10))
 # Plot countries
 world.plot(ax=ax, color='lightblue', edgecolor='black', linewidth=0.5)
 
-# Plot cities
+# Plot cities (administrative divisions)
 cities.plot(ax=ax, color='red', markersize=20, alpha=0.7)
+
+# Plot the specific administrative area (California) in green
+cities[cities['name'] == 'California'].plot(ax=ax, color='green', edgecolor='black', linewidth=2)
 
 # Customize the map
 ax.set_title('World Countries and Major Cities', fontsize=16, fontweight='bold')
@@ -250,8 +276,6 @@ Let's see the impact of using the wrong coordinate system:
 import geopandas as gpd
 import matplotlib.pyplot as plt
 
-# Load world data
-world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
 
 # Create subplots to compare projections
 fig, axes = plt.subplots(2, 2, figsize=(15, 10))
@@ -275,7 +299,7 @@ except:
     axes[1,0].set_title('UTM Zone 10N - Error!')
 
 # 4. Focus on a specific region with appropriate UTM
-california = world[world['name'] == 'United States of America']
+california = world[world['NAME'] == 'United States of America']
 california_utm = california.to_crs('EPSG:32610')  # UTM Zone 10N
 california_utm.plot(ax=axes[1,1], color='yellow', edgecolor='black')
 axes[1,1].set_title('UTM Zone 10N (EPSG:32610)\nCorrect for California')
@@ -284,11 +308,17 @@ plt.tight_layout()
 plt.show()
 ```
 
-!!! warning "CRS Mistakes Can Cause"
-    - **Distorted shapes** - Countries looking stretched or compressed
-    - **Wrong distances** - Measurements being completely off
-    - **Misaligned data** - Layers not overlapping correctly
-    - **Analysis errors** - Spatial operations giving wrong results
+### Understanding the Projections
+
+```python
+WGS84 (EPSG:4326): Global latitude–longitude system used by GPS; good for storing locations, not for measurements.
+
+Web Mercator (EPSG:3857): Web-map projection in meters; looks familiar but distorts size, especially near the poles.
+
+UTM used globally (WRONG): A local projection forced on the whole world, causing severe distortion and meaningless shapes.
+
+UTM used locally (CORRECT): Right projection for its zone; meters are accurate and distances/areas make sense.
+```
 
 ## Practical CRS Guidelines
 
@@ -313,6 +343,8 @@ def check_crs_compatibility(gdf1, gdf2):
 
 # Example usage
 check_crs_compatibility(world, cities)
+check_crs_compatibility(world_mercator, cities)
+check_crs_compatibility(world_utm, cities)
 ```
 
 ## Practice Problems
