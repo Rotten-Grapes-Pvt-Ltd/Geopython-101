@@ -305,9 +305,9 @@ world_popup = world.copy()
 world_popup['popup_info'] = world_popup.apply(
     lambda row: f"""
     <b>{row['name']}</b><br>
-    Continent: {row['continent']}<br>
-    Population: {row['pop_est']:,}<br>
-    GDP: ${row['gdp_md_est']:,.0f}M
+    Continent: {row['REGION_UN']}<br>
+    Population: {row['POP_EST']:,}<br>
+    GDP: ${row['gdp_md']:,.0f}M
     """, axis=1
 )
 
