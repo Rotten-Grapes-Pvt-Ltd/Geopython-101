@@ -420,64 +420,6 @@ m.add_text('World Population and Major Cities',
 m
 ```
 
-## 7. Advanced Leafmap Features
-
-### Add Drawing Tools
-
-```python
-# Create map with drawing tools
-m = leafmap.Map(center=[40, -100], zoom=4)
-
-# Add drawing toolbar
-m.add_toolbar()
-
-# Add countries for reference
-m.add_gdf(
-    world,
-    layer_name='Countries',
-    fill_colors=['lightgray'],
-    line_colors=['black'],
-    line_widths=[0.3]
-)
-
-m
-```
-
-### Measure Tool
-
-```python
-# Add measurement capabilities
-m = leafmap.Map(center=[40, -100], zoom=4)
-
-# Add measure control
-m.add_measure_control()
-
-# Add reference data
-m.add_gdf(
-    world,
-    layer_name='Countries',
-    fill_colors=['lightgray'],
-    line_colors=['black']
-)
-
-m
-```
-
-### Split Map Comparison
-
-```python
-# Create split map for comparison
-m = leafmap.Map(center=[40, -100], zoom=4)
-
-# Add different basemaps to left and right
-m.split_map(
-    left_layer='Esri.WorldImagery',
-    right_layer='OpenStreetMap'
-)
-
-m
-```
-
 ## Practice Problems
 
 ### Problem 1: Regional Analysis Map
