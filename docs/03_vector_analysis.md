@@ -35,7 +35,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from shapely.geometry import Point, LineString, Polygon
 import warnings
-warnings.filterwarnings('ignore')
+
 
 # Set up plotting
 plt.style.use('default')
@@ -47,8 +47,11 @@ A **GeoDataFrame** is like a regular pandas DataFrame but with a special **geome
 
 ```python
 # Load Natural Earth data
-world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
-cities = gpd.read_file(gpd.datasets.get_path('naturalearth_cities'))
+import geopandas as gpd
+
+world=gpd.read_file("/content/countries.zip")
+states=gpd.read_file("/content/states.zip")
+cities=gpd.read_file("/content/city.geojson")
 
 print("=== WORLD COUNTRIES GEODATAFRAME ===")
 print(f"Type: {type(world)}")
@@ -58,7 +61,7 @@ print(f"Geometry column: {world.geometry.name}")
 
 # Inspect the data
 print("\n=== COLUMNS ===")
-print(world.columns.tolist())
+print(sorted(world.columns.tolist()))
 
 print("\n=== FIRST FEW ROWS ===")
 print(world[['name', 'continent', 'pop_est', 'geometry']].head())
@@ -114,7 +117,6 @@ def inspect_geodataframe(gdf, name):
     print(f"CRS: {gdf.crs}")
     print(f"Geometry types: {gdf.geometry.type.value_counts().to_dict()}")
     print(f"Valid geometries: {gdf.geometry.is_valid.sum()}/{len(gdf)}")
-    print(f"Missing values: {gdf.isnull().sum().sum()}")
     print(f"Bounds: {gdf.total_bounds}")
     
     # Check for empty geometries
@@ -135,41 +137,101 @@ cities = inspect_geodataframe(cities, "Cities")
 
 ```python
 # Filter by single condition
-large_countries = world[world['pop_est'] > 100_000_000]
+
+# Just to handle large number
+import pandas as pd
+pd.options.display.float_format = '{:,.0f}'.format
+
+large_countries = world[world['POP_EST'] > 100_000_000]
 print(f"Countries with >100M people: {len(large_countries)}")
-print(large_countries[['name', 'pop_est']].sort_values('pop_est', ascending=False))
+print(large_countries[['NAME', 'POP_EST']].sort_values('POP_EST', ascending=False))
 
 # Filter by multiple conditions
 large_rich_countries = world[
-    (world['pop_est'] > 50_000_000) & 
-    (world['gdp_md_est'] > 1_000_000)
+    (world['POP_EST'] > 50_000_000) & 
+    (world['GDP_MD'] > 1_000_000)
 ]
-print(f"\nLarge & wealthy countries: {len(large_rich_countries)}")
+print(f"\nLarge (50M) & wealthy countries (1M GDP): {len(large_rich_countries)}")
 
 # Filter by continent
-asian_countries = world[world['continent'] == 'Asia']
+asian_countries = world[world['REGION_UN'] == 'Asia']
 print(f"\nAsian countries: {len(asian_countries)}")
 
 # Filter using isin() for multiple values
-developed_continents = world[world['continent'].isin(['Europe', 'North America'])]
+developed_continents = world[world['REGION_UN'].isin(['Europe', 'North America'])]
 print(f"European & North American countries: {len(developed_continents)}")
+```
+
+### Exporting and Visualizing
+
+```python
+# Export Asian countries to GeoJSON
+asian_countries.to_file(
+    "asian_countries.geojson",
+    driver="GeoJSON"
+)
+
+# Visualize Asian countries
+import matplotlib.pyplot as plt
+fig, ax = plt.subplots(figsize=(10, 8))
+asian_countries.plot(
+    ax=ax,
+    color="lightgreen",
+    edgecolor="black"
+)
+
+ax.set_title("Asian Countries")
+plt.show()
+
+ax.set_title("Asian Countries")
+plt.show()
+
+# Load and visualize from GeoJSON with color mapping
+asia_geojson = gpd.read_file("asian_countries.geojson")
+
+asia_geojson.plot(
+    figsize=(10, 8),
+    column="NAME",
+    cmap="hsv",
+    edgecolor="black"
+)
+plt.title("Asian Countries (Loaded from GeoJSON)")
+plt.show()
 ```
 
 ### String Operations
 
 ```python
 # Countries with 'United' in the name
-united_countries = world[world['name'].str.contains('United', na=False)]
+united_countries = world[world['NAME'].str.contains('United', na=False)]
 print("Countries with 'United' in name:")
-print(united_countries['name'].tolist())
+print(united_countries['NAME'].tolist())
 
 # Countries starting with 'S'
-s_countries = world[world['name'].str.startswith('S')]
+s_countries = world[world['NAME'].str.startswith('S')]
 print(f"\nCountries starting with 'S': {len(s_countries)}")
 
 # Case-insensitive search
-island_countries = world[world['name'].str.contains('island', case=False, na=False)]
+island_countries = world[world['NAME'].str.contains('island', case=False, na=False)]
 print(f"Countries with 'island' in name: {len(island_countries)}")
+
+# Countries with "South" AND "Africa"
+south_africa_like = world[
+    world['NAME'].str.contains('South', na=False) &
+    world['NAME'].str.contains('Africa', na=False)
+]
+
+print("Countries with 'South' and 'Africa':")
+print(south_africa_like['NAME'].tolist())
+
+# Countries with "New" OR "United"
+new_or_united = world[
+    world['NAME'].str.contains('New', na=False) |
+    world['NAME'].str.contains('United', na=False)
+]
+
+print("Countries with 'New' or 'United':")
+print(new_or_united['NAME'].tolist())
 ```
 
 ## 4. Coordinate Reference Systems & Reprojection
@@ -179,10 +241,10 @@ print(f"Countries with 'island' in name: {len(island_countries)}")
 ```python
 print("=== CRS INFORMATION ===")
 print(f"World CRS: {world.crs}")
-print(f"Cities CRS: {cities.crs}")
+print(f"States CRS: {states.crs}")
 
 # Check if CRS match
-if world.crs == cities.crs:
+if world.crs == states.crs:
     print("✅ CRS match - safe for spatial operations")
 else:
     print("❌ CRS mismatch - need to reproject")
@@ -195,15 +257,25 @@ else:
 # Mollweide is good for global area calculations
 world_equal_area = world.to_crs('+proj=moll')
 
-# Calculate areas in km²
+# Calculate areas in km² using the reprojected data
 world_equal_area['area_km2_calc'] = world_equal_area.geometry.area / 1_000_000
 
-# Compare with existing area data
-comparison = world_equal_area[['name', 'area_km2', 'area_km2_calc']].copy()
-comparison['difference'] = abs(comparison['area_km2'] - comparison['area_km2_calc'])
+# Calculate areas in degrees squared from original
+world['area_deg2'] = world.geometry.area
+world['area_km2'] = world.area_deg2 / 1_000_000
+
+# Compare both calculations
+world_equal_area['area_km2_orig'] = world['area_km2']
+
+comparison = world_equal_area[['NAME', 'area_km2_orig', 'area_km2_calc']].copy()
+comparison['difference'] = abs(comparison['area_km2_orig'] - comparison['area_km2_calc'])
 
 print("=== AREA CALCULATION COMPARISON ===")
-print(comparison.sort_values('area_km2_calc', ascending=False).head())
+display(comparison.sort_values('area_km2_calc', ascending=False).head().style.format({
+    'area_km2_orig': '{:.6f}',
+    'area_km2_calc': '{:.2f}',
+    'difference': '{:.2f}'
+}))
 ```
 
 ### Regional Projections
@@ -227,37 +299,69 @@ print(na_albers[['name', 'accurate_area']].sort_values('accurate_area', ascendin
 
 ### Buffers
 
-Buffers create zones around features:
-
 ```python
-# Create buffers around cities
-# First, reproject to a projected CRS for accurate distance measurements
-cities_projected = cities.to_crs('EPSG:3857')  # Web Mercator (meters)
+import geopandas as gpd
+import matplotlib.pyplot as plt
 
-# Create 100km buffers around cities
-cities_100km = cities_projected.copy()
-cities_100km['geometry'] = cities_projected.geometry.buffer(100_000)  # 100km in meters
+# Project states to meters
+states_proj = states.to_crs("EPSG:3857")
 
-# Reproject back to WGS84 for visualization
-cities_100km_wgs84 = cities_100km.to_crs('EPSG:4326')
+# Extract Madhya Pradesh geometry
+mp_geom = states_proj.loc[
+    states_proj["name"] == "Madhya Pradesh", "geometry"
+].iloc[0]
 
-# Visualize
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
+print("MP geometry type:", mp_geom.geom_type)
 
-# Original cities
-world.plot(ax=ax1, color='lightgray', edgecolor='black')
-cities.plot(ax=ax1, color='red', markersize=20)
-ax1.set_title('Original Cities')
-ax1.set_xlim(-180, 180)
-ax1.set_ylim(-60, 80)
+# 100 km buffer (in meters)
+mp_buffer = mp_geom.buffer(100_000)
 
-# Cities with buffers
-world.plot(ax=ax2, color='lightgray', edgecolor='black')
-cities_100km_wgs84.plot(ax=ax2, color='red', alpha=0.3)
-cities.plot(ax=ax2, color='red', markersize=10)
-ax2.set_title('Cities with 100km Buffers')
-ax2.set_xlim(-180, 180)
-ax2.set_ylim(-60, 80)
+# Wrap into GeoSeries
+mp_gs = gpd.GeoSeries([mp_geom], crs="EPSG:3857")
+mp_buffer_gs = gpd.GeoSeries([mp_buffer], crs="EPSG:3857")
+
+# Reproject back to WGS84
+mp_gs_wgs84 = mp_gs.to_crs("EPSG:4326")
+mp_buffer_gs_wgs84 = mp_buffer_gs.to_crs("EPSG:4326")
+
+states_wgs84 = states.to_crs("EPSG:4326")
+
+# Two-panel plot (Original MP | MP with 100 km buffer)
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 15))
+
+# --- Left: Original Madhya Pradesh ---
+states_wgs84.plot(ax=ax1, color="lightgray", edgecolor="black")
+mp_gs_wgs84.plot(
+    ax=ax1,
+    color="none",
+    edgecolor="red",
+    linewidth=2
+)
+
+ax1.set_title("Original Madhya Pradesh")
+ax1.set_xlim(72, 85)
+ax1.set_ylim(20, 37)
+
+# --- Right: Madhya Pradesh with 100 km buffer ---
+states_wgs84.plot(ax=ax2, color="lightgray", edgecolor="black")
+
+mp_buffer_gs_wgs84.plot(
+    ax=ax2,
+    color="red",
+    alpha=0.3,
+    edgecolor="black"
+)
+
+mp_gs_wgs84.plot(
+    ax=ax2,
+    color="none",
+    edgecolor="red",
+    linewidth=2
+)
+
+ax2.set_title("Madhya Pradesh with 100 km Buffer")
+ax2.set_xlim(72, 85)
+ax2.set_ylim(20, 37)
 
 plt.tight_layout()
 plt.show()
@@ -266,27 +370,18 @@ plt.show()
 ### Spatial Relationships
 
 ```python
-# Find countries that intersect with city buffers
-# This tells us which countries have major cities
+# Find intersecting states (excluding MP itself)
+intersecting_states = []
 
-# Ensure same CRS
-world_proj = world.to_crs('EPSG:3857')
-cities_buffers = cities_projected.geometry.buffer(50_000)  # 50km buffers
+for idx, row in states_proj.iterrows():
+    if row["name"] == "Madhya Pradesh":
+        continue
 
-# Find intersections
-countries_with_major_cities = []
+    if mp_buffer.intersects(row.geometry):
+        intersecting_states.append(row["name"])
 
-for idx, country in world_proj.iterrows():
-    # Check if any city buffer intersects with this country
-    intersects = cities_buffers.intersects(country.geometry).any()
-    if intersects:
-        countries_with_major_cities.append(country['name'])
-
-print(f"Countries with major cities (within 50km): {len(countries_with_major_cities)}")
-print(f"Countries without major cities: {len(world) - len(countries_with_major_cities)}")
-```
-
-## Spatial Relationships & Functions
+print(f"States intersecting MP 100 km buffer ({len(intersecting_states)}):")
+print(intersecting_states)
 
 Understanding spatial relationships is crucial for geospatial analysis. Here's a comprehensive guide to spatial predicates and their use cases:
 
@@ -306,18 +401,34 @@ Understanding spatial relationships is crucial for geospatial analysis. Here's a
 ### Point-in-Polygon Operations
 
 ```python
+
 # Find which country each city belongs to
 cities_with_countries = gpd.sjoin(cities, world, how='left', predicate='within')
 
 print("=== CITIES WITH THEIR COUNTRIES ===")
-city_country_check = cities_with_countries[['name_left', 'name_right']].copy()
-city_country_check.columns = ['city', 'country']
+city_country_check = cities_with_countries[['city', 'NAME']].copy()
+
 print(city_country_check.head(10))
 
+# city_country_check = city_country_check.rename(
+#     columns={'NAME': 'country'}
+# )
 # Count cities per country
-cities_per_country = city_country_check['country'].value_counts()
+cities_per_country = city_country_check['NAME'].value_counts()
 print(f"\nTop 10 countries by number of major cities:")
 print(cities_per_country.head(10))
+
+# Also analyze states and their countries
+states_with_country = gpd.sjoin(
+    states,
+    world,
+    how='left',
+    predicate='within'
+)
+
+for country, group in states_with_country.groupby('NAME'):
+    print(f"\n🌍 Country: {country}")
+    print(group['name'].tolist())
 ```
 
 ## 6. Geometric Calculations
@@ -329,24 +440,23 @@ print(cities_per_country.head(10))
 from shapely.geometry import Point
 
 # Select a few major cities
-major_cities = cities[cities['name'].isin(['New York', 'London', 'Tokyo', 'Sydney'])].copy()
+major_cities = cities[cities['city'].isin(['New York', 'London', 'Tokyo', 'Sydney'])].copy()
 
 # Reproject for accurate distance calculation
 major_cities_proj = major_cities.to_crs('EPSG:3857')
 
 # Calculate distance matrix
-city_names = major_cities['name'].tolist()
+city_names = major_cities['city'].tolist()
 distances = {}
 
 for i, city1 in major_cities_proj.iterrows():
-    distances[city1['name']] = {}
+    distances[city1['city']] = {}
     for j, city2 in major_cities_proj.iterrows():
-        if city1['name'] != city2['name']:
+        if city1['city'] != city2['city']:
             dist_m = city1.geometry.distance(city2.geometry)
             dist_km = dist_m / 1000
-            distances[city1['name']][city2['name']] = dist_km
+            distances[city1['city']][city2['city']] = dist_km
 
-# Display distance matrix
 print("=== DISTANCE MATRIX (km) ===")
 import pandas as pd
 distance_df = pd.DataFrame(distances).fillna(0)
@@ -357,23 +467,20 @@ print(distance_df.round(0))
 
 ```python
 # Calculate country statistics
+# Reprojects geometries to Mollweide projection
 world_stats = world.to_crs('+proj=moll').copy()  # Equal area projection
 
 # Calculate geometric properties
 world_stats['area_km2'] = world_stats.geometry.area / 1_000_000
 world_stats['perimeter_km'] = world_stats.geometry.length / 1_000
-world_stats['compactness'] = (4 * np.pi * world_stats['area_km2']) / (world_stats['perimeter_km'] ** 2)
 
 # Display results
 print("=== COUNTRY GEOMETRIC STATISTICS ===")
-stats_display = world_stats[['name', 'area_km2', 'perimeter_km', 'compactness']].copy()
+stats_display = world_stats[['NAME', 'area_km2', 'perimeter_km']].copy()
 stats_display = stats_display.sort_values('area_km2', ascending=False)
 
 print("Largest countries by area:")
 print(stats_display.head())
-
-print("\nMost compact countries (closer to 1 = more circular):")
-print(stats_display.sort_values('compactness', ascending=False).head())
 ```
 
 ## 7. Spatial Joins
@@ -388,9 +495,9 @@ print(stats_display.sort_values('compactness', ascending=False).head())
 cities_in_countries = gpd.sjoin(cities, world, how='left', predicate='within')
 
 # Calculate statistics per country
-country_stats = cities_in_countries.groupby('name_right').agg({
-    'name_left': 'count',  # Number of cities
-    'pop_est_left': ['sum', 'mean']  # Total and average city population
+country_stats = cities_in_countries.groupby('NAME').agg({
+    'city': 'count',  # Number of cities
+    'POP_EST': ['sum', 'mean']  # Total and average city population
 }).round(0)
 
 # Flatten column names
@@ -401,7 +508,7 @@ print("=== COUNTRIES WITH MOST MAJOR CITIES ===")
 print(country_stats.head(10))
 
 # Merge back with world data for visualization
-world_with_cities = world.merge(country_stats, left_on='name', right_index=True, how='left')
+world_with_cities = world.merge(country_stats, left_on='NAME', right_index=True, how='left')
 world_with_cities['num_cities'] = world_with_cities['num_cities'].fillna(0)
 ```
 
@@ -504,11 +611,13 @@ plt.show()
 
 ```python
 # Save to different formats
-output_dir = 'output/'
+output_dir = '/content/output'
 
 # Create output directory (in real scenario)
 # import os
 # os.makedirs(output_dir, exist_ok=True)
+
+large_countries = world.copy()
 
 # 1. GeoJSON (web-friendly)
 large_countries.to_file(f'{output_dir}large_countries.geojson', driver='GeoJSON')
@@ -518,18 +627,16 @@ large_countries.to_file(f'{output_dir}large_countries.shp')
 
 # 3. GeoPackage (modern, efficient)
 large_countries.to_file(f'{output_dir}analysis_results.gpkg', layer='large_countries')
-cities_100km_wgs84.to_file(f'{output_dir}analysis_results.gpkg', layer='city_buffers')
 
 # 4. CSV with WKT geometry (for databases)
 large_countries_csv = large_countries.copy()
-large_countries_csv['geometry_wkt'] = large_countries_csv.geometry.to_wkt()
+
 large_countries_csv.drop('geometry', axis=1).to_csv(f'{output_dir}large_countries.csv', index=False)
 
 print("=== FILES SAVED ===")
 print("✅ large_countries.geojson")
 print("✅ large_countries.shp (+ associated files)")
 print("✅ analysis_results.gpkg (multiple layers)")
-print("✅ large_countries.csv (with WKT geometry)")
 ```
 
 ## Practice Problems
