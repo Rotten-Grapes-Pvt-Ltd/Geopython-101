@@ -2,7 +2,7 @@
 icon: material/home
 ---
 
-# GeoPython 101: 4-Hour Workshop
+# GeoPython 101
 
 Welcome to **GeoPython 101** - a comprehensive introduction to Python for geospatial analysis and visualization! This workshop is designed for absolute beginners to Python with mixed GIS backgrounds.
 
