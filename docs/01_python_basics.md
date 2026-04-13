@@ -5,6 +5,9 @@ icon: material/language-python
 # Module 1: Python Basics
 
 ## Learning Goals
+
+This module builds a foundation in Python syntax and core data structures so you can read scripts and write small programs confidently. The outcomes below are the skills you should recognize and practice before moving on to geospatial libraries. Use the code examples and exercises to connect each bullet to working code.
+
 - Understand what Python is and where it's used
 - Work with variables and basic data types
 - Use lists and dictionaries effectively
@@ -15,7 +18,9 @@ icon: material/language-python
 
 ## What is Python?
 
-Python is a high-level, interpreted programming language that's widely used for:
+Python is a general-purpose, high-level language designed to be readable and quick to write. Your source code is executed by an interpreter (or runtime), so you can run small snippets or full programs without a separate compilation step. A very large standard library and third-party packages make it a common choice for data analysis, automation, web services, and scientific or geospatial work.
+
+Here are some common application areas:
 
 - **Data Science & Analytics** - pandas, numpy, matplotlib
 - **Web Development** - Django, Flask
@@ -37,6 +42,8 @@ graph TD
 
 ## 1. Python as a Calculator
 
+You can type numeric expressions in Python and get results immediately, much like a desk calculator. Operators such as `+`, `-`, `*`, `/`, `**`, and `%` follow familiar math rules, with a few Python-specific details (for example, `/` always produces a floating-point result). This is a simple way to check syntax, explore numbers, and build toward variables and scripts.
+
 Let's start with basic arithmetic operations:
 
 ```python
@@ -56,6 +63,8 @@ print(17 % 5)   # Modulo (remainder): 2
     - Use `%` to get the remainder
 
 ## 2. Variables and Data Types
+
+A **variable** is a name that refers to a value stored in memory, so you can reuse and update data without repeating literals. **Data types** describe what kind of value something is—such as whole numbers (`int`), decimals (`float`), text (`str`), or true/false (`bool`)—and they determine which operations are valid. Python figures out many types automatically, and you can inspect them with `type()`.
 
 Variables store data that can be used later:
 
@@ -84,6 +93,8 @@ print(type(is_capital))   # <class 'bool'>
 
 ### String Operations
 
+**Strings** are sequences of characters used for names, labels, and text. You can combine them (concatenation), build messages with **f-strings**, and call **methods** like `.lower()` or `.replace()` to transform text without changing the original string in place (strings are immutable). These operations are central to cleaning labels, paths, and CSV fields in real projects.
+
 ```python
 # String concatenation and formatting
 first_name = "John"
@@ -105,6 +116,8 @@ print(city.replace(" ", "_"))  # san_francisco
 ```
 
 ## 3. Lists - Ordered Collections
+
+A **list** is an ordered, mutable collection: items keep their sequence, and you can add, remove, or change elements by index. Lists can hold mixed types, though in data work you often keep one type per list (for example, all numbers or all strings). Indexing starts at `0`, and slicing lets you take contiguous sub-ranges efficiently.
 
 Lists store multiple items in order:
 
@@ -134,6 +147,8 @@ print(sum(populations))         # Sum of all values
 
 ### List Comprehensions (Bonus)
 
+A **list comprehension** is a compact way to build a new list by looping over another iterable, optionally filtering with `if`. It often replaces a short `for` loop plus `.append()` with a single readable expression. Comprehensions are idiomatic in Python for transforming or filtering sequences of values.
+
 ```python
 # Create new lists based on existing ones
 numbers = [1, 2, 3, 4, 5]
@@ -146,6 +161,8 @@ print(large_cities)
 ```
 
 ## 4. Dictionaries - Key-Value Pairs
+
+A **dictionary** maps unique **keys** to **values**, so you look up data by name (for example a city id or column-like label) instead of by position. Keys must be hashable (often strings or numbers); values can be any type, including nested dicts or lists. Dictionaries are ideal for records, configuration, and structured attributes you want to access by key.
 
 Dictionaries store data as key-value pairs:
 
@@ -185,6 +202,8 @@ print(cities_data["London"]["population"])  # 9000000
 
 ## 5. For Loops - Iteration
 
+A **`for` loop** runs the same block of code once for each item in a sequence (like a list, string, or dictionary view). It is the usual way to process many rows, files, or keys without copying and pasting logic. You can also pair values with indices using `enumerate()` when you need position as well as the item.
+
 For loops let you repeat code for each item in a collection:
 
 ```python
@@ -220,6 +239,8 @@ for population in city_populations.values():
 
 ### Range Function
 
+**`range`** produces a sequence of integers on demand, which is memory-efficient and works naturally in `for` loops. You can pass one argument (stop), or start and stop, or start, stop, and step—much like slice notation but for counting. It is commonly used for repeating an action a fixed number of times or generating numeric indices.
+
 ```python
 # Generate sequences of numbers
 for i in range(5):          # 0, 1, 2, 3, 4
@@ -239,6 +260,8 @@ for num in file_numbers:
 ```
 
 ## 6. Functions - Reusable Code
+
+A **function** is a named block of code that takes inputs (**parameters**), does work, and often **returns** a result to the caller. Defining functions avoids duplication, makes scripts easier to read, and lets you test one piece of logic in isolation. Default argument values and docstrings help document behavior and common use cases.
 
 Functions help organize and reuse code:
 
@@ -275,6 +298,8 @@ print(mystery_city)
 
 ### Functions with Lists and Dictionaries
 
+When a function accepts a **list** or **dictionary**, it can aggregate, filter, or reshape structured data in one place. You often loop over items or keys, use built-ins like `sum()` and `max()`, or build a new dict to return several related results at once. This pattern mirrors how you will later wrap pandas or GIS operations in small, testable helpers.
+
 ```python
 def analyze_cities(cities_dict):
     """Analyze a dictionary of cities and their populations"""
@@ -305,6 +330,8 @@ print(f"Average population: {analysis['average_population']:,.0f}")
 
 ## 7. Importing Libraries
 
+A **library** (or **module**) is reusable code—functions, classes, and constants—packaged so you can load it into your program. The `import` statement brings that code into scope, optionally under a short **alias** (for example `pd` for pandas). Using the standard library and well-known packages saves time and avoids reimplementing common tasks like math, dates, and random numbers.
+
 Libraries extend Python's capabilities:
 
 ```python
@@ -331,6 +358,8 @@ import numpy as np
 ```
 
 ## 8. Working with CSV Data using Pandas
+
+**Pandas** provides tabular data structures—especially the **DataFrame**—with labeled rows and columns, similar to a spreadsheet or SQL table in memory. You can load CSV and other formats, compute new columns, filter, sort, group, and summarize without writing low-level loops for every step. It is the standard tool for exploratory analysis and preparing geospatial attribute tables before or after mapping.
 
 Pandas is the most popular library for data analysis:
 
@@ -383,6 +412,8 @@ print(f"Total population: {df['population'].sum():,}")
     - Column names with spaces need brackets: `df['column name']`
 
 ## Practice Problems
+
+These exercises apply the ideas from each section in small, self-contained scenarios. Try to solve them before opening the solutions, then compare your approach to the reference code. Repeating patterns like loops, dicts, and functions here will make later geospatial notebooks feel familiar.
 
 ### Problem 1: City Analysis
 Create a program that analyzes city data:
@@ -534,6 +565,8 @@ country_data = {
 
 ## Key Takeaways
 
+The lists below condense the main vocabulary and habits from this module. Use them as a checklist when you review or when you read someone else's Python for the first time. The best practices box highlights style and robustness, not just syntax.
+
 !!! success "What You've Learned"
     - **Variables**: Store and manipulate different types of data
     - **Lists**: Work with ordered collections of items
@@ -551,6 +584,8 @@ country_data = {
     - Import only what you need from libraries
 
 ## Next Steps
+
+The course now turns from general Python to geographic data models and tools. You will reuse variables, collections, loops, functions, and pandas as soon as you load spatial datasets and attribute tables. The next module introduces how those datasets are represented and what to watch for when coordinates and CRS enter the picture.
 
 In the next module, we'll apply these Python skills to geospatial data, learning about:
 - Vector vs Raster data
