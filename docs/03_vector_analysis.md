@@ -641,12 +641,42 @@ gdf.to_file(out_dir / "sites_out.geojson", driver="GeoJSON")
 
 - **[sites_out.geojson](assets/output/sites_out.geojson)**
 
+## Basics assignment: vectors, Shapely, GeoPandas & geojson.io
 
+These **nine tasks** recap this module’s **vector** ideas (points, lines, polygons), **Shapely** constructors and predicates, **GeoPandas** I/O and tables, and working with **GeoJSON** files. Complete them in order where it helps; each should take a short notebook or script. (CRS **reprojection** is covered later in this chapter; this assignment stays in **lon/lat** unless your instructor says otherwise.)
 
+Use **[geojson.io](https://geojson.io/)** to sketch geometries on a map: draw on the map, edit the JSON on the right, then **Save** (menu) or copy the **FeatureCollection** into a `.geojson` file. geojson.io uses **WGS 84 (lon/lat)**; when you build a `GeoDataFrame` by hand, set **`crs="EPSG:4326"`** so it matches.
 
-# Advance GeoPandas
+!!! tip "geojson.io workflow"
+    - Draw with the point / line / polygon tools, then click features to edit **properties** (add fields like `name`, `id`, `population`).
+    - **Save → GeoJSON** downloads a file you can open with **`gpd.read_file("your_file.geojson")`**.
+    - If the site shows only a **Feature**, wrap it in a **`FeatureCollection`** or save as-is; GeoPandas can read either when GDAL accepts it.
 
-Later sections load larger teaching datasets (for example Natural Earth) and add spatial operations; the snippets here are the **read → explore → edit → save** loop.
+1. **Create and download a point** — In geojson.io, place one **Point**, set a property **`name`**. Download/save as `my_place.geojson`. Load with GeoPandas, **`print(gdf.crs)`**, **`print(gdf.head())`**, and confirm **`geom_type`** is `Point`.
+
+2. **LineString length** — Draw a **LineString** with at least **three** vertices crossing a path you care about (e.g. a trail idea). Export, load in Python, print **`gdf.geometry.iloc[0].length`** (degrees) and **`gdf.total_bounds`**. In one sentence, say why length is **not** metres yet.
+
+3. **Polygon area and centroid** — Draw one **Polygon** (closed region). Export, load, print **`.area`** and **`.centroid`** for that geometry. Note: in **EPSG:4326**, area is in **degree²**—fine for practice, not for official hectares.
+
+4. **Shapely buffer** — Load your polygon from (3) as a **Shapely** geometry (e.g. `gdf.geometry.iloc[0]`), build **`buffered = geom.buffer(0.05)`** (same units as coordinates), wrap as a **`Feature`** with **`shapely.geometry.mapping`**, and **`json.dumps`** or write a small GeoJSON file. Optional: open the result in geojson.io.
+
+5. **Intersection** — In geojson.io create **two overlapping polygons** (or one polygon + one box). Export as one FeatureCollection. In Python, split into two GeoDataFrames (one row each) and run **`gpd.overlay(..., how="intersection")`**, or use **`.intersection()`** on two Shapely geometries. Paste or describe the **overlap** geometry type you get.
+
+6. **Attributes: add and export** — Load any geojson.io export. Add columns **`source`** = `"geojson.io"` and **`student_id`** (string). Save with **`gdf.to_file("edited_lab.geojson", driver="GeoJSON")`**. Re-read the file and assert row count matches.
+
+7. **Filter by attribute** — Give at least two features a numeric property (e.g. **`priority`**). In Python, keep only rows with **`priority >= 2`**. Print the result and the number of rows.
+
+8. **Point in polygon** — Draw one **polygon** and one **point inside** it in geojson.io (same file). Load, pick the point and polygon rows, and evaluate **`point_geom.within(polygon_geom)`** (Shapely) **or** **`gpd.sjoin(..., predicate="within")`**. Report `True` / `False` or the join row count.
+
+9. **Pure-Python FeatureCollection** — Without geojson.io, build **three** Shapely objects (`Point`, `LineString`, `Polygon`), assemble a **`GeoDataFrame`** with a **`label`** column, set **`crs="EPSG:4326"`**, and **`to_file("built_in_python.geojson", driver="GeoJSON")`**. Open **`built_in_python.geojson`** in geojson.io to visually check.
+
+Submit your **`.geojson` files**, a single **`.py` or `.ipynb`**, and short answers for any “explain” prompts your instructor assigns.
+
+---
+
+## Advanced GeoPandas workflows
+
+The sections below use **larger teaching datasets** (for example Natural Earth) and go deeper into **CRS**, **spatial operations**, **joins**, and **writing results**. Complete the **Basics assignment** first if you want the geojson.io + Shapely + small-table workflow fresh before scaling up.
 
 ## Setting Up the Environment
 
