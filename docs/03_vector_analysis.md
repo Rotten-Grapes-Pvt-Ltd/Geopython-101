@@ -59,20 +59,18 @@ The **on-disk format** is only a container: geometry types (Point, Polygon, …)
 
 Vector GIS data are stored in many **file and database formats**. GeoPandas uses **GDAL/OGR** under the hood (`gpd.read_file()` / `to_file()`), so if a format has a GDAL **vector driver**, you can often read it the same way—point at the path or URL and optionally pass a **layer** name when the container holds more than one table.
 
-| Format | Typical extension(s) | Layers | Typical use | Notes |
-|--------|----------------------|--------|-------------|--------|
-| **GeoPackage** | `.gpkg` | Multiple (tables) | Default in QGIS; archival exchange | SQLite + OGC standard; supports rasters too in same file |
-| **GeoJSON** | `.geojson`, `.json` | Usually one sequence | APIs, web maps, teaching | Plain text; large files can be slow |
-| **JSON (newline / NDJSON)** | `.geojsonl`, `.ndjson`, `.jsonl` | One feature per line (stream) | Big data pipelines | Each line is one GeoJSON Feature object |
-| **ESRI Shapefile** | `.shp` (+ required sidecars) | One per `.shp` set | Legacy industry exchange | Keep `.dbf`, `.shx`, `.prj` together; 2 GB size limit; use `.cpg` for UTF-8 text |
-| **GeoParquet** | `.parquet` | One table per file | Cloud, pandas/Arrow workflows | Columnar; efficient filtering |
-| **KML** | `.kml` | Folders / structure | Google Earth, simple web | XML; often read via GDAL “KML” / “LIBKML” driver |
-| **KMZ** | `.kmz` | As inner KML | Packaged placemarks + assets | ZIP archive containing `.kml` (and images, etc.) |
-| **PostGIS** | (database connection, not a file) | Schemas / tables | Server-side GIS | `gpd.read_postgis()` with SQL |
-| **CSV** | `.csv` | One table | Spreadsheets with a WKT or lon/lat columns | Not a spatial format unless columns are interpreted |
+Tiny **sample files** for this course live under **[`assets/examples/`](assets/examples/)** (same folder as this page’s `assets/` root). Use the **Example download** column to grab a file and try `gpd.read_file(...)` locally.
+
+| Format | Typical extension(s) | Layers | Typical use | Notes | Example download |
+|--------|----------------------|--------|-------------|-------|-------------------|
+| **GeoJSON** | `.geojson`, `.json` | Usually one sequence | APIs, web maps, teaching | Plain text; large files can be slow | [example.geojson](assets/examples/example.geojson) |
+| **ESRI Shapefile** | `.shp` (+ required sidecars) | One per `.shp` set | Legacy industry exchange | Keep `.dbf`, `.shx`, `.prj` together; 2 GB size limit; use `.cpg` for UTF-8 text | [example.zip](assets/examples/example.zip) (zipped sidecars) |
+| **KML** | `.kml` | Folders / structure | Google Earth, simple web | XML; often read via GDAL “KML” / “LIBKML” driver | [example.kml](assets/examples/example.kml) |
+| **PostGIS** | (database connection, not a file) | Schemas / tables | Server-side GIS | `gpd.read_postgis()` with SQL | [example.sql](assets/examples/example.sql) (pg_dump–style script) |
+| **CSV** | `.csv` | One table | Spreadsheets with a WKT or lon/lat columns | Not a spatial format unless columns are interpreted | [example.csv](assets/examples/example.csv) (`lon` / `lat` columns) |
 
 
-Many other formats exist (**MicroStation DGN**, **AutoCAD DWG**, **GeoRSS**, **S-57**, etc.); check [GDAL vector drivers](https://gdal.org/drivers/vector/index.html) for the full list your install supports.
+Many other formats exist (**GeoPackage**, **GML**, **DXF**, etc.); check [GDAL vector drivers](https://gdal.org/drivers/vector/index.html) for the full list your install supports.
 
 ### Shapefile: keep the family together
 
@@ -84,32 +82,6 @@ A **shapefile** is never just `.shp`. At minimum you need:
 
 Usually also **`.prj`** (CRS) and often **`.cpg`** (text encoding, e.g. UTF-8). Copy or share the **whole set** with the same base name.
 
-### Reading different formats with GeoPandas
-
-```python
-import geopandas as gpd
-
-# Single-file formats: path to the file
-gdf_gpkg = gpd.read_file("data/study_area.gpkg", layer="parcels")  # layer= optional if only one
-gdf_json = gpd.read_file("data/sites.geojson")
-gdf_parquet = gpd.read_file("data/sites.parquet")
-
-# Shapefile: path to the .shp file (sidecars in same folder)
-gdf_shp = gpd.read_file("data/roads.shp")
-
-# File Geodatabase: path to the .gdb folder
-# gdf_fc = gpd.read_file("data/project.gdb", layer="Roads")
-
-# KMZ is often read like a path (GDAL reads inside the zip)
-# gdf_kmz = gpd.read_file("data/sites.kmz", layer="sites")
-```
-
-Use `gpd.read_file(path, layer="...")` whenever the container has **multiple** layers (GeoPackage, FileGDB, some KML/KMZ).
-
-!!! tip "Choosing a format for new work"
-    - Prefer **GeoPackage** or **GeoParquet** for new projects when you can (open standard, metadata, multi-layer or columnar efficiency).
-    - Use **GeoJSON** when humans need to diff or hand-edit small datasets.
-    - Use **Shapefile** only when a partner or tool still requires it.
 
 ## Shapely — geometry objects and operations
 
@@ -503,7 +475,7 @@ _Formatted (scroll):_
 
 ![Union polygon (merged footprint of both regions)](assets/union.png)
 
-For **many features** and **attribute tables**, use the same operations through **GeoPandas** (`sjoin`, `overlay`, vectorized `.intersects`, …) in the next section.
+For **many features** and **attribute tables**, combine the Shapely ideas above with **GeoPandas** tables: read layers, filter rows, and run spatial operations such as **`sjoin`** and **`overlay`** in the sections that follow.
 
 ## Introduction to GeoPandas
 
@@ -524,59 +496,157 @@ graph TD
     C --> G[Spatial Relationships]
 ```
 
-### Basic operations on a GeoDataFrame (buffer, merge, intersect, within)
+### GeoPandas basics: read, export, access, update
 
-These mirror the Shapely examples but run on **layers**. They load the same **[`data/shapely_demo_india.geojson`](data/shapely_demo_india.geojson)** used above (two polygons + three points).
+These patterns are the same ones you will reuse in the rest of this module: **read** a vector file into a **`GeoDataFrame`**, **inspect** rows and columns, **change** attribute values or add columns, and **write** results back to disk.
+
+**Read a file** — `read_file()` accepts a path, URL, or ZIP; set **`layer=`** when the container has more than one table (GeoPackage, FileGDB).
 
 ```python
 from pathlib import Path
 import geopandas as gpd
-import pandas as pd
 
-path = Path("data/shapely_demo_india.geojson")
+# Example: bundled sample GeoJSON (adjust path if your working directory differs)
+path = Path("assets/examples/example.geojson")
 if not path.exists():
-    path = Path("docs/data/shapely_demo_india.geojson")
+    path = Path("docs/assets/examples/example.geojson")
 
 gdf = gpd.read_file(path)
-polys = gdf[gdf.geometry.type == "Polygon"].reset_index(drop=True)
-pts = gdf[gdf.geometry.type == "Point"].reset_index(drop=True)
-
-# BUFFER — first survey point, distance in meters (UTM zone 43N suits this longitude)
-first = pts.iloc[[0]].copy()
-first_utm = first.to_crs("EPSG:32643")
-buffered = first_utm.copy()
-buffered["geometry"] = first_utm.buffer(75_000)  # 75 km
-buffered_wgs = buffered.to_crs("EPSG:4326")
-
-# MERGE (attributes) — pandas on a key (GeoJSON already has `name` on points)
-crew = pd.DataFrame({"name": ["site_1", "site_2"], "crew_size": [2, 3]})
-pts_with_crew = pts.head(2).merge(crew, on="name", how="left")
-
-# MERGE (two polygons → one geometry) — unary union of both regions
-one_region = gpd.GeoDataFrame(geometry=[polys.geometry.unary_union], crs=gdf.crs)
-
-# INTERSECT — planar intersection of the two polygon features
-poly_a = polys.iloc[[0]].assign(region=["A"])
-poly_b = polys.iloc[[1]].assign(region=["B"])
-intersect_layer = gpd.overlay(poly_a, poly_b, how="intersection")
-
-# WITHIN — spatial join: a known interior point vs the polygon that contains it
-inner_pt = gpd.GeoDataFrame(
-    {"label": ["representative"]},
-    geometry=[polys.geometry.iloc[0].representative_point()],
-    crs=gdf.crs,
-)
-inside = gpd.sjoin(inner_pt, polys.iloc[[0]], how="inner", predicate="within")
+print(gdf.crs)              # CRS when declared in the file (GeoJSON often EPSG:4326)
+print(gdf.shape)            # (number of rows, number of columns)
+print(gdf.geometry.name)    # active geometry column name (usually "geometry")
 ```
 
-| Goal | Shapely (one geom) | GeoPandas (many features) |
-|------|--------------------|---------------------------|
-| Grow / shrink by distance | `geom.buffer(d)` | `gdf.to_crs(meters_crs).buffer(d)` on `GeoSeries` |
-| Combine polygon outlines | `a.union(b)`, `unary_union([...])` | `gdf.geometry.unary_union` or `gpd.overlay(..., how="union")` |
-| Overlap geometry | `a.intersection(b)` | `gpd.overlay(a, b, how="intersection")` |
-| Test inside / overlap | `.within`, `.intersects` | `gpd.sjoin(..., predicate="within")` or vectorized `gdf.intersects(other)` |
+**Example printed output** (reading [`assets/examples/example.geojson`](assets/examples/example.geojson) from this course):
 
-Later sections use **Natural Earth** and larger workflows; the snippets above are the minimal building blocks.
+```text
+EPSG:4326
+(5, 6)
+geometry
+```
+
+So this sample layer has **5 features**, **6 columns** (including `geometry`), WGS 84 coordinates, and the geometry column is named **`geometry`**.
+
+**Access data** — a GeoDataFrame is a **pandas** table plus **`geometry`**: use **`head`**, **`loc`** / **`iloc`**, column names, and boolean filters exactly like a `DataFrame`.
+
+```python
+# First rows and all attribute columns + geometry
+print(gdf.head(3))
+
+# Subset of columns (default .head() shows five rows)
+print(gdf[["name", "geometry"]].head())
+
+# Rows by position or label (use in your own logic; shown here as patterns)
+row0 = gdf.iloc[0]
+subset = gdf.loc[gdf["name"] == "Feature 3"]
+
+# Geometry types and point coordinates (only for Point rows)
+print(gdf.geometry.geom_type.unique())
+pts = gdf[gdf.geometry.geom_type == "Point"]
+print(pts.geometry.x, pts.geometry.y)
+```
+
+**Example printed output** (same `example.geojson` after `read_file` above):
+
+**1 — `print(gdf.head(3))`**
+
+```text
+   id       name category  status  value                                         geometry
+0   1  Feature 1   region  active    100  POLYGON ((77.57767 21.03445, 77.57767 20.62253...
+1   2  Feature 2    route  active    200  LINESTRING (80.65195 23.14701, 80.57995 19.098...
+2   3  Feature 3     site  active    300                          POINT (79.56102 21.59242)
+```
+
+**2 — `print(gdf[["name", "geometry"]].head())`**
+
+```text
+        name                                         geometry
+0  Feature 1  POLYGON ((77.57767 21.03445, 77.57767 20.62253...
+1  Feature 2  LINESTRING (80.65195 23.14701, 80.57995 19.098...
+2  Feature 3                          POINT (79.56102 21.59242)
+3  Feature 4                          POINT (76.26425 19.42733)
+4  Feature 5  POLYGON ((75.52703 23.63438, 74.33056 21.38052...
+```
+
+**3 — `print(gdf.geometry.geom_type.unique())`**
+
+```text
+['Polygon' 'LineString' 'Point']
+```
+
+**4 — `print(pts.geometry.x, pts.geometry.y)`** (only the two **Point** features)
+
+```text
+2    79.561022
+3    76.264254
+dtype: float64 2    21.592421
+3    19.427326
+dtype: float64
+```
+
+The last line is **two Series** printed one after the other (longitude then latitude index `2` and `3` match the original row indices in `gdf`).
+
+**Update data** — assign **new attribute columns** or overwrite cells with pandas syntax; keep the **`geometry`** column valid when you replace geometries.
+
+```python
+# Add / overwrite attribute columns (copy first so you do not mutate a shared view)
+gdf = gdf.copy()
+gdf["source"] = "example.geojson"
+gdf["value_doubled"] = gdf["value"] * 2
+print(gdf)
+
+# Update selected rows (pandas .loc on the attribute column)
+gdf.loc[gdf["status"] == "active", "status"] = "ACTIVE"
+print(gdf)
+```
+
+**Example printed output** (continuing from the same `gdf` loaded earlier):
+
+**1 — After adding `source` and `value_doubled` (`print(gdf)`)**
+
+```text
+   id       name category    status  value                                         geometry           source  value_doubled
+0   1  Feature 1   region    active    100  POLYGON ((77.57767 21.03445, 77.57767 20.62253...  example.geojson            200
+1   2  Feature 2    route    active    200  LINESTRING (80.65195 23.14701, 80.57995 19.098...  example.geojson            400
+2   3  Feature 3     site    active    300                          POINT (79.56102 21.59242)  example.geojson            600
+3   4  Feature 4     site  inactive    400                          POINT (76.26425 19.42733)  example.geojson            800
+4   5  Feature 5   region  inactive    500  POLYGON ((75.52703 23.63438, 74.33056 21.38052...  example.geojson           1000
+```
+
+**2 — After `gdf.loc[gdf["status"] == "active", "status"] = "ACTIVE"` (`print(gdf)`)**
+
+```text
+   id       name category    status  value                                         geometry           source  value_doubled
+0   1  Feature 1   region    ACTIVE    100  POLYGON ((77.57767 21.03445, 77.57767 20.62253...  example.geojson            200
+1   2  Feature 2    route    ACTIVE    200  LINESTRING (80.65195 23.14701, 80.57995 19.098...  example.geojson            400
+2   3  Feature 3     site    ACTIVE    300                          POINT (79.56102 21.59242)  example.geojson            600
+3   4  Feature 4     site  inactive    400                          POINT (76.26425 19.42733)  example.geojson            800
+4   5  Feature 5   region  inactive    500  POLYGON ((75.52703 23.63438, 74.33056 21.38052...  example.geojson           1000
+```
+
+Rows that were **`active`** are now **`ACTIVE`**; **`inactive`** rows are unchanged.
+
+**Export a file** — **`to_file()`** writes GeoPackage, GeoJSON, Shapefile, etc. Pick a **`driver`** when the extension is ambiguous; use **`index=False`**-style options via pandas only for non-spatial exports.
+
+This course ships a **ready-made export** at **[`assets/output/sites_out.geojson`](assets/output/sites_out.geojson)** — it matches the **`gdf`** from the **Update data** step above (`source`, `value_doubled`, `ACTIVE` / `inactive`). Your own `to_file()` run should reproduce the same schema and values.
+
+```python
+out_dir = Path("output")
+out_dir.mkdir(parents=True, exist_ok=True)
+
+# GeoJSON (good for sharing small layers)
+gdf.to_file(out_dir / "sites_out.geojson", driver="GeoJSON")
+```
+**Bundled output file** (result of the export pipeline — download or open in QGIS):
+
+- **[sites_out.geojson](assets/output/sites_out.geojson)**
+
+
+
+
+# Advance GeoPandas
+
+Later sections load larger teaching datasets (for example Natural Earth) and add spatial operations; the snippets here are the **read → explore → edit → save** loop.
 
 ## Setting Up the Environment
 

@@ -1,0 +1,51 @@
+<kml xmlns="http://www.opengis.net/kml/2.2"><Document>
+<Placemark>
+<name>Feature 1</name><ExtendedData>
+  <Data name="id"><value>1</value></Data>
+  <Data name="category"><value>region</value></Data>
+  <Data name="status"><value>active</value></Data>
+  <Data name="value"><value>100</value></Data></ExtendedData>
+  <Polygon>
+<outerBoundaryIs>
+  <LinearRing><coordinates>77.5776731609584,21.034449735534366
+77.5776731609584,20.62253336365508
+78.53820018707307,20.62253336365508
+78.53820018707307,21.034449735534366
+77.5776731609584,21.034449735534366</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark>
+<Placemark>
+<name>Feature 2</name><ExtendedData>
+  <Data name="id"><value>2</value></Data>
+  <Data name="category"><value>route</value></Data>
+  <Data name="status"><value>active</value></Data>
+  <Data name="value"><value>200</value></Data></ExtendedData>
+  <LineString><coordinates>80.6519460059335,23.147011802917902
+80.57994542562528,19.098397546355457
+77.73562368462683,19.098687268008177
+77.47462605513692,14.508493936458507</coordinates></LineString></Placemark>
+<Placemark>
+<name>Feature 3</name><ExtendedData>
+  <Data name="id"><value>3</value></Data>
+  <Data name="category"><value>site</value></Data>
+  <Data name="status"><value>active</value></Data>
+  <Data name="value"><value>300</value></Data></ExtendedData>
+  <Point><coordinates>79.56102228049235,21.592420713791824</coordinates></Point></Placemark>
+<Placemark>
+<name>Feature 4</name><ExtendedData>
+  <Data name="id"><value>4</value></Data>
+  <Data name="category"><value>site</value></Data>
+  <Data name="status"><value>inactive</value></Data>
+  <Data name="value"><value>400</value></Data></ExtendedData>
+  <Point><coordinates>76.26425407623753,19.42732611512747</coordinates></Point></Placemark>
+<Placemark>
+<name>Feature 5</name><ExtendedData>
+  <Data name="id"><value>5</value></Data>
+  <Data name="category"><value>region</value></Data>
+  <Data name="status"><value>inactive</value></Data>
+  <Data name="value"><value>500</value></Data></ExtendedData>
+  <Polygon>
+<outerBoundaryIs>
+  <LinearRing><coordinates>75.5270294457045,23.634381069586027
+74.3305599758977,21.38052009369494
+75.87417607860189,21.01231813767005
+77.02450906340755,22.329365649754678
+75.5270294457045,23.634381069586027</coordinates></LinearRing></outerBoundaryIs></Polygon></Placemark></Document></kml>
