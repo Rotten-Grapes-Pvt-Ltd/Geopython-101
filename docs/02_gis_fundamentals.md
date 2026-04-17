@@ -8,8 +8,9 @@ icon: material/earth
 - Understand the difference between vector and raster data
 - Learn about basic geometry types (Point, Line, Polygon)
 - Understand attribute tables and their relationship to geometries
-- Grasp the importance of Coordinate Reference Systems (CRS)
-- See what happens when CRS is wrong
+- Grasp what a CRS is (datum, units, geographic vs projected)
+- Express the **same real-world location** with different coordinate numbers after reprojection
+- See what happens when CRS is wrong or mis-declared
 
 ## What is GIS?
 
@@ -52,6 +53,21 @@ graph LR
 
 ## Vector Geometry Types
 
+The three core **vector** geometries are **point** (one location), **line** (ordered vertices along a path), and **polygon** (a closed ring—or rings with holes—that encloses an area). Diagrams below show the idea in map coordinates; the **example data** sections give real **GeoJSON** you can save, load in Python, or open in QGIS.
+
+### Point vs line vs polygon (comparison)
+
+| | **Point** | **Line** (`LineString`) | **Polygon** |
+|---|-----------|-------------------------|-------------|
+| **What it represents** | One location | A path along a route | A bounded area (and optional holes) |
+| **Vertices** | 1 coordinate pair | 2 or more, in order | 1+ closed rings; outer ring first, then holes |
+| **Typical measures** | Position only; no length or area | Length along the path | Perimeter length and interior area |
+| **GeoJSON `type`** | `Point` | `LineString` | `Polygon` |
+| **Shapely class** | `Point` | `LineString` | `Polygon` |
+| **Examples** | Towers, sensors, addresses | Roads, rivers, tracks | Countries, parcels, lakes |
+
+**Rule of thumb:** use a **point** when “where” is a single spot; a **line** when connectivity or route matters; a **polygon** when you need an **inside** vs **outside** (area).
+
 ### Setting Up
 
 ```python
@@ -60,50 +76,169 @@ import matplotlib.pyplot as plt
 ```
 
 ### Points
-- **Single coordinate pair** (x, y)
-- Represent discrete locations
-- Examples: cities, weather stations, GPS locations
+
+![Point geometry: a single location in coordinate space](assets/points.png)
+
+- **Single coordinate pair** `(x, y)` — in geographic data usually **(longitude, latitude)** in that order (GeoJSON / WGS84).
+- **Zero-length** object: no area, no length; only position.
+- Examples: cities, weather stations, GPS fixes, sampling sites.
+
+**Example GeoJSON** (one `Point` feature with properties):
+
+```json
+{
+  "type": "Feature",
+  "properties": {
+    "name": "Trailhead Kiosk",
+    "amenity": "information"
+  },
+  "geometry": {
+    "type": "Point",
+    "coordinates": [-122.4194, 37.7749]
+  }
+}
+```
+
+In Python with Shapely, the same location looks like:
 
 ```python
-# Create a Point
+# Create a Point (here using simple plot coordinates; use lon/lat for real maps)
 p = Point(2, 3)
 
 x, y = p.xy
-plt.plot(x, y, 'ro')
+plt.plot(x, y, 'ro', markersize=10)
 plt.title("Point")
+plt.xlabel("x")
+plt.ylabel("y")
+plt.axis("equal")
 plt.grid()
 plt.show()
 ```
 
 ### Lines (LineStrings)
-- **Series of connected points**
-- Represent linear features
-- Examples: roads, rivers, flight paths
+
+![Line geometry: vertices connected in order along a path](assets/lines.png)
+
+- **Ordered sequence** of vertices; the line **connects them in order** (no branching in a single `LineString`).
+- Has **length**, no area.
+- Examples: roads, rivers, trails, ship tracks.
+
+**Example GeoJSON** (`LineString` with four vertices):
+
+```json
+{
+  "type": "Feature",
+  "properties": {
+    "name": "Ridge Trail segment",
+    "surface": "unpaved"
+  },
+  "geometry": {
+    "type": "LineString",
+    "coordinates": [
+      [-122.422, 37.773],
+      [-122.418, 37.775],
+      [-122.415, 37.7765],
+      [-122.412, 37.778]
+    ]
+  }
+}
+```
 
 ```python
 # Create a LineString
 line = LineString([(1, 1), (4, 2), (6, 5)])
 
 x, y = line.xy
-plt.plot(x, y, 'b-')
+plt.plot(x, y, 'b-o', linewidth=2, markersize=6)
 plt.title("LineString")
+plt.xlabel("x")
+plt.ylabel("y")
+plt.axis("equal")
 plt.grid()
 plt.show()
 ```
 
 ### Polygons
-- **Closed series of lines** forming a shape
-- Represent areas with boundaries
-- Examples: countries, lakes, building footprints
+
+![Polygon geometry: a closed ring defining an interior area](assets/polygon.png)
+
+- **Exterior ring** is closed (first point equals last in valid data); **interior rings** (holes) are optional.
+- Has **area** and **perimeter** (boundary length).
+- Examples: countries, parcels, lakes, study regions.
+
+**Example GeoJSON** (`Polygon`: outer ring only; note the repeated closing coordinate):
+
+```json
+{
+  "type": "Feature",
+  "properties": {
+    "name": "Study area boundary",
+    "zone_code": "A-12"
+  },
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [-122.425, 37.772],
+        [-122.408, 37.772],
+        [-122.408, 37.781],
+        [-122.425, 37.781],
+        [-122.425, 37.772]
+      ]
+    ]
+  }
+}
+```
 
 ```python
-# Create a Polygon
+# Create a Polygon (exterior ring; Shapely may close the ring for you)
 poly = Polygon([(2, 1), (6, 1), (7, 4), (4, 6), (2, 4)])
 
 x, y = poly.exterior.xy
-plt.fill(x, y, alpha=0.5, color='green')
+plt.fill(x, y, alpha=0.5, color='green', edgecolor='darkgreen', linewidth=2)
 plt.title("Polygon")
+plt.xlabel("x")
+plt.ylabel("y")
+plt.axis("equal")
 plt.grid()
+plt.show()
+```
+
+### Example file: point, line, and polygon together
+
+The repository includes a single **GeoJSON FeatureCollection** with one point, one line, and one polygon so you can practice I/O without hunting for data:
+
+**File:** [`data/example_point_line_polygon.geojson`](data/example_point_line_polygon.geojson)
+
+Load it with GeoPandas:
+
+```python
+import geopandas as gpd
+from pathlib import Path
+
+# Path to the example file (adjust if your working directory is not the repo root)
+geojson_path = Path("docs/data/example_point_line_polygon.geojson")
+if not geojson_path.exists():
+    geojson_path = Path("data/example_point_line_polygon.geojson")
+
+gdf = gpd.read_file(geojson_path)
+print(gdf[["name", "feature_type", "geometry"]])
+print(gdf.geometry.geom_type)
+```
+
+You should see three rows with geometry types `Point`, `LineString`, and `Polygon`. Plot them together:
+
+```python
+import matplotlib.pyplot as plt
+
+fig, ax = plt.subplots(figsize=(8, 8))
+gdf[gdf.geometry.geom_type == "Polygon"].plot(ax=ax, color="lightgreen", edgecolor="darkgreen", alpha=0.6)
+gdf[gdf.geometry.geom_type == "LineString"].plot(ax=ax, color="blue", linewidth=2)
+gdf[gdf.geometry.geom_type == "Point"].plot(ax=ax, color="red", markersize=80)
+ax.set_title("Point + LineString + Polygon (example GeoJSON)")
+ax.set_xlabel("Longitude")
+ax.set_ylabel("Latitude")
+plt.tight_layout()
 plt.show()
 ```
 
@@ -144,7 +279,13 @@ city_features = [
 
 ## Coordinate Reference Systems (CRS)
 
-A **Coordinate Reference System** defines how coordinates relate to real locations on Earth.
+A **Coordinate Reference System (CRS)** is the rulebook that turns numbers in your file into **real positions on Earth**. It ties together:
+
+- A **datum** (which mathematical model of the Earth you use, e.g. WGS 84)
+- **Axes and units** (degrees vs meters, which direction is “x”, etc.)
+- For **projected** CRS, a **map projection** (how the curved Earth is flattened to 2D)
+
+Without a CRS, a coordinate pair like `(-122.4194, 37.7749)` is ambiguous: degrees? meters? which hemisphere? Software uses the CRS metadata (often an **EPSG** code such as `EPSG:4326`) to interpret those numbers correctly.
 
 ```mermaid
 graph TD
@@ -157,6 +298,59 @@ graph TD
     F --> H[Web Mercator - Web maps]
     F --> I[UTM - Local accuracy]
 ```
+
+### Geographic vs projected CRS
+
+| | **Geographic CRS** | **Projected CRS** |
+|---|-------------------|-------------------|
+| **Coordinates** | Usually **longitude** and **latitude** in **degrees** | **Easting** and **northing** (or x/y) in **meters** (or feet) |
+| **Earth shape** | On a sphere or ellipsoid (angular) | Flattened map plane (distances/areas can be meaningful locally) |
+| **Examples** | WGS 84 — `EPSG:4326` | Web Mercator — `EPSG:3857`; UTM zones — e.g. `EPSG:32610` |
+| **Typical use** | GPS, GeoJSON storage, global exchange | Web maps, engineering, “how many meters apart?” |
+
+**Latitude and longitude** are not a separate magic format: they are the normal way to write positions in a **geographic** CRS (especially WGS 84). In a **projected** CRS, the **same place on the ground** is written with **different numbers** (meters), not with lat/lon—unless you first **transform** back to geographic.
+
+### Same real-world location, different coordinate pairs
+
+Take one fixed place: **near San Francisco** in WGS 84 as **longitude −122.4194°, latitude 37.7749°**. That is **one** spot on Earth. If you **reproject** the point to other CRS, the **stored x/y change**, but the **location does not**:
+
+| CRS | EPSG | First coordinate (interpretation) | Second coordinate (interpretation) |
+|-----|------|-----------------------------------|-------------------------------------|
+| WGS 84 (geographic) | **4326** | −122.4194 (**degrees** longitude) | 37.7749 (**degrees** latitude) |
+| WGS 84 / Pseudo-Mercator | **3857** | −13,627,665.27 (**meters**, easting) | 4,547,675.35 (**meters**, northing) |
+| WGS 84 / UTM zone 10N | **32610** | 551,130.77 (**meters**, easting) | 4,180,998.88 (**meters**, northing) |
+
+The **large meter values** are not “more precise” versions of lat/lon—they are a **different coordinate system** for the **same** point. You convert with `to_crs()` in GeoPandas (or equivalent in other libraries); never assume you can paste lat/lon into a projected system without transforming.
+
+```python
+import geopandas as gpd
+from shapely.geometry import Point
+
+# One place on Earth: lon, lat in WGS 84 (geographic)
+lon, lat = -122.4194, 37.7749
+gdf = gpd.GeoDataFrame(geometry=[Point(lon, lat)], crs="EPSG:4326")
+
+# Same geometry, expressed in Web Mercator (meters)
+gdf_merc = gdf.to_crs("EPSG:3857")
+x_m, y_m = gdf_merc.geometry.iloc[0].x, gdf_merc.geometry.iloc[0].y
+
+# Same geometry, expressed in UTM zone 10N (meters)
+gdf_utm = gdf.to_crs("EPSG:32610")
+x_u, y_u = gdf_utm.geometry.iloc[0].x, gdf_utm.geometry.iloc[0].y
+
+print(f"EPSG:4326 (deg):  lon={lon}, lat={lat}")
+print(f"EPSG:3857 (m):    x={x_m:,.2f}, y={y_m:,.2f}")
+print(f"EPSG:32610 (m):   x={x_u:,.2f}, y={y_u:,.2f}")
+```
+
+### Common mistake: “lat/lon” numbers with a projected CRS label
+
+If your values are really **degrees** (e.g. from GPS) but the file says **EPSG:3857** (meters), software will treat **−122.4** as **−122.4 meters** on the map—far from North America. Always **set the CRS to what the numbers actually are**, then **reproject** to the CRS you need for analysis or display.
+
+!!! tip "CRS workflow"
+    - **Store** global exchange data often as **WGS 84 / EPSG:4326** (or another agreed geographic CRS).
+    - **Reproject** to a **projected** CRS for **distance, area, or local mapping** in meters.
+    - **Never** mix two CRS in one map or spatial join without aligning them with `to_crs()`.
 
 ### Why CRS Matters
 
@@ -484,7 +678,7 @@ mindmap
     - **Vector vs Raster**: Two fundamental data types in GIS
     - **Geometry Types**: Points, lines, and polygons represent different features
     - **Attributes**: Descriptive data linked to geographic features
-    - **CRS Importance**: Critical for accurate analysis and visualization
+    - **CRS**: Datum + units; geographic (lon/lat in degrees) vs projected (meters); same place → different numbers after `to_crs()`
     - **Data Inspection**: How to explore and understand geographic datasets
 
 !!! tip "Best Practices"

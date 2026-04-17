@@ -1,0 +1,54 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Trailhead Kiosk",
+        "feature_type": "point",
+        "amenity": "information"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [-122.4194, 37.7749]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Ridge Trail segment",
+        "feature_type": "line",
+        "surface": "unpaved"
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [-122.422, 37.773],
+          [-122.418, 37.775],
+          [-122.415, 37.7765],
+          [-122.412, 37.778]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Study area boundary",
+        "feature_type": "polygon",
+        "zone_code": "A-12"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [-122.425, 37.772],
+            [-122.408, 37.772],
+            [-122.408, 37.781],
+            [-122.425, 37.781],
+            [-122.425, 37.772]
+          ]
+        ]
+      }
+    }
+  ]
+}
