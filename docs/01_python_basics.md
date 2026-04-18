@@ -15,8 +15,7 @@ This module builds a foundation in Python syntax and core data structures so you
 - Write and use `for` and `while` loops
 - Create simple functions with arguments and return values
 - Import and use libraries
-- Read and write text files safely (paths, encoding, `with open`)
-- Load and save **JSON** for configs and structured data
+- Read and write text files safely (paths, encoding, `with open`, `pathlib`)
 - Use NumPy arrays for numeric vectors and grids
 - Read and shape tabular data with pandas
 
@@ -131,19 +130,6 @@ print(city.replace(" ", "_"))  # san_francisco
 ```
 
 ## 3. Lists, Tuples, Sets, and Dictionaries (overview)
-
-Python’s built-in **collections** cover most day-to-day grouping needs:
-
-| Structure | Ordered? | Mutable? | Duplicate elements? | Typical use |
-|-----------|----------|----------|---------------------|-------------|
-| **List** | Yes | Yes | Allowed | Sequences you change (rows, coordinates as you build them) |
-| **Tuple** | Yes | No | Allowed | Fixed records, keys, or return bundles |
-| **Set** | No* | Yes | Unique only | Membership tests, deduplication, set math |
-| **Dictionary** | Insertion-ordered (3.7+) | Yes | Keys unique; values can repeat | Records by name, lookup tables |
-
-\*Sets do not preserve a meaningful order for iteration; do not rely on order for logic.
-
-**Lists**, **tuples**, and **sets** are covered below in order; **dictionaries** are the topic of section 4.
 
 ### Lists — ordered, mutable
 
@@ -269,6 +255,17 @@ cities_data = {
 
 print(cities_data["London"]["population"])  # 9000000
 ```
+
+### Lists, Tuples, Sets, and Dictionaries (overview)
+
+| Structure | Ordered? | Mutable? | Duplicate elements? | Typical use |
+|-----------|----------|----------|---------------------|-------------|
+| **List** | Yes | Yes | Allowed | Sequences you change (rows, coordinates as you build them) |
+| **Tuple** | Yes | No | Allowed | Fixed records, keys, or return bundles |
+| **Set** | No* | Yes | Unique only | Membership tests, deduplication, set math |
+| **Dictionary** | Insertion-ordered (3.7+) | Yes | Keys unique; values can repeat | Records by name, lookup tables |
+
+\*Sets do not preserve a meaningful order for iteration; do not rely on order for logic.
 
 ## 5. Conditional Statements (`if`, `elif`, `else`)
 
@@ -494,13 +491,13 @@ import pandas as pd
 # These are common conventions in data science
 ```
 
-## 9. File and JSON Handling
+## 9. File Handling
 
-Most real programs **read input** from disk (logs, CSV exports, GeoJSON, config files) and **write output** (reports, cleaned tables, small caches). Python’s built-in tools let you work with **text files** and with **JSON**, a text format that maps cleanly onto Python’s `dict` and `list`. Tabular **CSV** is often easier with **pandas** (section 11); this section focuses on **plain text** and **JSON**, which you will see everywhere in APIs and geospatial metadata.
+Most real programs **read input** from disk (logs, field notes, CSV exports, config text) and **write output** (reports, cleaned tables, small caches). Python’s built-in tools focus on **plain text** and **binary** streams: open a path, read or write bytes or decoded text, and close the file reliably. Tabular **CSV** is often easier with **pandas** (section 11); here you learn the **`open()`** / **`pathlib`** patterns that underpin any format, including larger files you stream line by line.
 
 ### Files, paths, and programs
 
-A **path** is a string (or `pathlib.Path`) that names a location on disk, for example `"data/readings.txt"` or `"C:/Users/you/project/config.json"`. On Windows, both backslashes and forward slashes often work in Python strings; forward slashes are portable in code.
+A **path** is a string (or `pathlib.Path`) that names a location on disk, for example `"data/readings.txt"` or `"C:/Users/you/project/config.txt"`. On Windows, both backslashes and forward slashes often work in Python strings; forward slashes are portable in code.
 
 A minimal **program** that uses files has three parts: (1) choose a path, (2) **open** the file in the right **mode**, (3) **read** or **write**, then **close** (or use `with`, which closes for you).
 
@@ -564,259 +561,191 @@ print(file_path.exists(), file_path.name)
 
 For **very large** files, still stream with `open()` and a `for line in f` loop instead of `read_text()`.
 
-### JSON: structured text
-
-**JSON** (JavaScript Object Notation) stores **objects** (`{}` → Python `dict`), **arrays** (`[]` → `list`), **strings**, **numbers**, **`true`/`false`**, and **`null`** (`None` in Python). It is human-readable, language-independent, and the standard for web APIs and many GIS workflows (for example **GeoJSON** is JSON with a defined schema).
-
-The **`json`** module converts between **JSON text** and Python values:
-
-| Function | Direction | Typical use |
-|----------|-----------|-------------|
-| `json.loads(string)` | JSON → Python | Parse text from a variable or HTTP response |
-| `json.dumps(obj)` | Python → JSON string | Build text to print, send, or store in a string |
-| `json.load(file)` | JSON → Python | Read from an open **text** file |
-| `json.dump(obj, file)` | Python → file | Write pretty or compact JSON to disk |
-
-JSON **keys** must be strings; Python `dict` keys can be wider types, but `json.dump` will coerce keys to strings where needed. **Tuples** are not JSON-native—they become **lists** when serialized.
-
-```python
-import json
-
-record = {
-    "site_id": "A12",
-    "elevation_m": 120.5,
-    "active": True,
-    "tags": ["urban", "surveyed"],
-    "meta": None,
-}
-
-# Python → JSON string (compact)
-s = json.dumps(record)
-print(s)
-
-# Pretty-printed string (easier to read in editors)
-pretty = json.dumps(record, indent=2, ensure_ascii=False)
-print(pretty)
-
-# String → Python
-parsed = json.loads(s)
-print(parsed["site_id"], parsed["tags"][0])
-```
-
-`ensure_ascii=False` keeps characters like `"München"` readable in the file instead of `\uXXXX` escapes.
-
-### Read and write JSON files
-
-Use the same **`with open(..., encoding="utf-8")`** pattern as for text. Pass the file object to **`json.load`** / **`json.dump`**.
-
-```python
-import json
-from pathlib import Path
-
-Path("data").mkdir(parents=True, exist_ok=True)
-path = Path("data/sites.json")
-
-sites = [
-    {"id": "S1", "lon": -122.4, "lat": 37.8},
-    {"id": "S2", "lon": -0.1, "lat": 51.5},
-]
-
-with open(path, "w", encoding="utf-8") as f:
-    json.dump(sites, f, indent=2, ensure_ascii=False)
-
-with open(path, "r", encoding="utf-8") as f:
-    loaded = json.load(f)
-
-print(f"Loaded {len(loaded)} sites; first id = {loaded[0]['id']}")
-```
-
-### Small program pattern: load config, use it, save state
-
-Below is a **end-to-end** pattern: default settings as a dict, merge with a JSON file if it exists, then write an updated file. This mirrors real **config + state** scripts without extra libraries.
-
-```python
-import json
-from pathlib import Path
-
-CONFIG_PATH = Path("data/app_config.json")
-
-defaults = {"region": "EU", "max_features": 500, "verbose": True}
-
-if CONFIG_PATH.exists():
-    with open(CONFIG_PATH, "r", encoding="utf-8") as f:
-        settings = {**defaults, **json.load(f)}  # file values override defaults
-else:
-    settings = dict(defaults)
-
-# ... your program uses `settings` ...
-
-settings["last_run_ok"] = True
-with open(CONFIG_PATH, "w", encoding="utf-8") as f:
-    json.dump(settings, f, indent=2, ensure_ascii=False)
-```
-
 ### When things go wrong
 
-Common issues: wrong path (**`FileNotFoundError`**), invalid JSON (**`json.JSONDecodeError`**), or permission errors. For short scripts you can catch these and print a clear message; larger apps might log and retry.
+Common issues: wrong path (**`FileNotFoundError`**), permission errors, or disk full on write. For short scripts you can catch **`FileNotFoundError`** and choose a default (for example create a folder or start with an empty file). For **encoding** problems, confirm the file is really UTF-8 text before forcing **`encoding="utf-8"`**; binary data should use **`"rb"`** / **`"wb"`** instead of text modes.
 
 ```python
-import json
 from pathlib import Path
 
-path = Path("data/maybe_missing.json")
+path = Path("data/maybe_missing.txt")
 try:
     text = path.read_text(encoding="utf-8")
-    data = json.loads(text)
 except FileNotFoundError:
-    print("No file yet; using empty dict")
-    data = {}
-except json.JSONDecodeError as e:
-    print("Invalid JSON:", e)
-    data = {}
+    print("No file yet; starting empty")
+    text = ""
+
+print(repr(text[:200]))  # first characters, if any
 ```
 
-For **trusted** files you control, this is enough. For **untrusted** JSON from the network, keep parsing separate from execution and validate fields before use.
+!!! tip "Text files vs tables vs binary"
+    - **Plain text** (this section): logs, notes, simple line-based formats; always set **`encoding="utf-8"`** unless a legacy format requires something else
+    - **CSV / tables**: flat columns; use **pandas** `read_csv` / `to_csv` in section 11 when rows and columns dominate
+    - **Binary** (`"rb"` / `"wb"`): images, some GIS binaries; you read **`bytes`**, not decoded strings
 
-!!! tip "JSON vs CSV vs GeoJSON"
-    - **JSON**: nested records, configs, API payloads, GeoJSON features
-    - **CSV**: flat tables; use **pandas** `read_csv` / `to_csv` when columns dominate
-    - **GeoJSON**: JSON with `type`, `coordinates`, etc.; you will load it with spatial libraries later—understanding `json.load` first makes that easier
+## 10. NumPy
 
-## 10. NumPy — Numeric Arrays
+**NumPy** (**Numerical Python**) is a library for working with **homogeneous, fixed-type arrays** of numbers (and similar values) in one or more dimensions. Its core type is the **`ndarray`**: values sit in a contiguous block of memory, so element-wise math and reductions (sum, mean, min, max) run in **compiled code** instead of slow Python loops over scalars.
 
-**NumPy** adds the **`ndarray`**: a fast, fixed-type array for numbers (and similar values) in one or more dimensions. For geospatial work you meet NumPy when handling **raster bands**, **coordinate arrays**, and **math on grids** without Python loops over every cell. The **pandas** library in the next section builds on these ideas: many table columns are NumPy-backed arrays under the hood.
+**Where NumPy shows up:** scientific and statistical computing, **machine-learning** stacks (many frameworks accept or return NumPy arrays), **image and raster grids** (elevation bands, satellite pixels), **coordinate arrays** (lists of x/y or lon/lat as vectors), and as the **numeric engine behind pandas**—a `DataFrame` column of floats is often backed by a NumPy array. In this course you will see it again when rasters and array-shaped results appear in later modules.
 
-NumPy uses the usual alias `np`. Here is a compact set of patterns:
+The usual import alias is **`np`**. Below: build an array from a Python list, inspect **`shape`**, use **`np.mean`**, and apply **vectorized** arithmetic (multiply every element at once).
+
+```python
+import numpy as np
+a = np.array([101.2, 98.0, 105.5, 99.1])
+print(a.shape, np.mean(a))   # (4,) 100.95 — dimensions and average
+print((a * 2).max())         # 211.0 — whole array × 2, then largest value
+```
+
+### String arrays (`dtype` like `<U6`)
+
+NumPy can store text in arrays too, using **fixed-width Unicode** dtypes (often written **`U{n}`** or **`<U{n}`**, meaning “Unicode string, up to **n** characters per element”). The width is chosen from the **longest string at creation time** unless you pass an explicit **`dtype`**.
+
+**Example: creating a string array**
 
 ```python
 import numpy as np
 
-# 1D vector and 2D grid from Python lists
-elevations = np.array([101.2, 98.0, 105.5, 99.1])
-grid = np.array([[1.0, 2.0], [3.0, 4.0]])
-print(elevations.shape)  # (4,)
-print(grid.shape)        # (2, 2)
-
-# Sequences: evenly spaced integers or floats
-idx = np.arange(0, 10, 2)           # 0, 2, 4, 6, 8
-xs = np.linspace(0.0, 1.0, 5)       # five values from 0 to 1 inclusive
-
-# Filled arrays (useful for masks, templates, or placeholders)
-zeros = np.zeros((2, 3))            # 2 rows, 3 columns
-ones = np.ones(4)
-
-# Math applies to every element at once (vectorized)
-doubled = elevations * 2
-print(np.mean(elevations), np.min(elevations), np.max(elevations))
-
-# Reshape without changing the data (size must match)
-flat = np.arange(12)                # 0..11
-raster_like = flat.reshape(3, 4)  # 3 rows, 4 columns
-
-# Indexing and slicing (same idea as lists, extended to 2D)
-print(grid[0, 1])       # row 0, column 1
-print(grid[:, 0])       # all rows, first column
+arr = np.array(["apple", "banana", "cherry"])
+print(arr)
+print(arr.dtype)   # e.g. <U6 — Unicode, max length 6 (from "banana")
 ```
+
+Here **`dtype`** looks like **`<U6`**: a Unicode string with **room for six characters** per slot (because **"banana"** has six letters).
+
+### Fixed-length behavior (truncation)
+
+Each element’s storage has a **fixed maximum length**. If you assign a **longer** string than the dtype allows, NumPy **truncates**—it does **not** grow the element like a Python `list` of arbitrary strings.
+
+```python
+arr = np.array(["cat", "dog"])
+arr[0] = "elephant"
+print(arr)   # ['ele' 'dog'] — "elephant" truncated to fit the original width (3)
+```
+
+!!! warning "String truncation"
+    Always know your **string dtype width** when you assign into NumPy string arrays. Silent truncation is a common source of wrong labels in pipelines that mix NumPy and file I/O.
+
+### Choosing the string length with `dtype`
+
+If you know you need longer values, set **`dtype`** when you create the array (for example **`"U10"`** for up to 10 characters per element):
+
+```python
+arr = np.array(["cat", "dog"], dtype="U10")
+arr[0] = "elephant"
+print(arr)   # ['elephant' 'dog'] — fits within 10 characters
+```
+
+### Vectorized string operations (`np.char`)
+
+For element-wise text operations on the whole array, NumPy exposes **`np.char`** (similar ideas to the older **`np.chararray`**). These are **limited** compared to full Python **`str`** methods, but they avoid writing a Python `for` loop over rows.
+
+```python
+words = np.array(["apple", "Banana"], dtype="U10")  # room for longer results
+print(np.char.upper(words))       # ['APPLE' 'BANANA']
+print(np.char.lower(words))       # ['apple' 'banana']
+print(np.char.add(words, "s"))    # ['apples' 'Bananas']
+```
+
+For **variable-length text**, **pandas** `Series` of Python `object` strings or dedicated **string dtypes** are often easier; use NumPy string dtypes when you deliberately want **compact, fixed-width** storage.
 
 !!! tip "NumPy Tips"
     - Prefer **vectorized** operations (`arr * 2`, `np.sqrt(arr)`) over `for` loops over single elements when arrays are large
     - `shape`, `dtype`, and `reshape()` are the first things to check when an array does not match what you expect
     - In the next section, pandas **Series** often use the same NumPy-style stats (for example `series.mean()` delegates to fast array code)
 
-## 11. Working with CSV Data using Pandas
+## 11. Pandas
 
-**Pandas** provides tabular data structures—especially the **DataFrame**—with labeled rows and columns, similar to a spreadsheet or SQL table in memory. You can load CSV and other formats, compute new columns, filter, sort, group, and summarize without writing low-level loops for every step. It builds on NumPy for fast numeric columns and is the standard tool for exploratory analysis and geospatial attribute tables.
+**pandas** is an open-source Python library for **tabular data**: tables with **named columns** and **row labels** (an **index**). Its main object is the **`DataFrame`** (many columns, many rows). Each column is a **`Series`**—a one-dimensional labeled array that often shares the same index as the parent table. Think **spreadsheet or SQL table in memory**, with rich methods for slicing, filtering, aggregating, and joining.
 
-Pandas is the most popular library for data analysis:
+### Advantages
 
-```python
-import pandas as pd
+- **Labeled rows and columns** — select by name (`df["population"]`) instead of only by position.
+- **Mixed types per column** — numbers, text, dates, and missing values (**`NaN`**) in one table without hand-built nested lists.
+- **Vectorized column operations** — add a whole column with one expression; many operations use fast NumPy-style code under the hood.
+- **Data cleaning helpers** — detect duplicates (**`drop_duplicates`**), missing values (**`isna`**, **`fillna`**), type casts (**`astype`**), renames (**`rename`**).
+- **File and API interchange** — **`read_csv`** / **`to_csv`** (and many other readers/writers) for workflows that round-trip with spreadsheets or databases.
+- **Geospatial companion** — **GeoPandas** builds on pandas for **attribute tables**; the same habits (filter, merge, groupby) apply to spatial layers.
 
-# Create sample data
-data = {
-    'city': ['New York', 'London', 'Tokyo', 'Sydney', 'Paris'],
-    'country': ['USA', 'UK', 'Japan', 'Australia', 'France'],
-    'population': [8_400_000, 9_000_000, 13_960_000, 5_300_000, 2_161_000],
-    'area_km2': [783, 1572, 2194, 12368, 105]
-}
+### Create a `DataFrame`
 
-# Create DataFrame
-df = pd.DataFrame(data)
+Common constructors:
 
-# Display data
-print("First 3 rows:")
-print(df.head(3))
+- **`pd.DataFrame({ "col": […], … })`** — from a **dictionary** of column name → list of values (all lists the same length).
+- **`pd.DataFrame([{…}, {…}])`** — from a **list of row records** (each dict is one row; keys become columns).
 
-print("\nDataFrame info:")
-print(df.info())
+### Access data
 
-print("\nBasic statistics:")
-print(df.describe())
+- **One column:** **`df["city"]`** (returns a **`Series`**). **Several columns:** **`df[["city", "population"]]`** (returns a **`DataFrame`**).
+- **By labels:** **`df.loc[row_index, "col"]`** — row/column names (with the default index, row labels are **`0, 1, 2, …`**).
+- **By position:** **`df.iloc[row_i, col_i]`** — integer positions, counting from zero.
+- **Filter rows:** **`df[df["population"] > 1_000_000]`** — boolean mask; keep rows where the condition is true.
+- **Quick views:** **`df.head(n)`**, **`df.tail(n)`**, **`df.shape`**, **`df.info()`**, **`df.describe()`** (numeric summary).
 
-# Calculate population density
-df['density'] = df['population'] / df['area_km2']
+### Add, edit, and delete
 
-# Filter data
-large_cities = df[df['population'] > 5_000_000]
-print("\nCities with population > 5 million:")
-print(large_cities[['city', 'population']])
+- **Add a column:** assign like **`df["density"] = df["population"] / df["area_km2"]`**.
+- **Edit values:** **`df.loc[2, "city"] = "Munich"`** for one cell; or assign a whole column with aligned **`Series`**.
+- **Delete columns:** **`df.drop(columns=["density"], inplace=False)`** returns a **new** frame unless you pass **`inplace=True`** (many tutorials prefer reassignment: **`df = df.drop(...)`**).
+- **Delete rows:** **`df.drop(index=[0, 3])`** or slice to the rows you want to keep.
+- **Rename:** **`df.rename(columns={"old": "new"})`**.
 
-# Sort data
-df_sorted = df.sort_values('density', ascending=False)
-print("\nCities by density (highest first):")
-print(df_sorted[['city', 'density']].round(1))
+### Basics in code
 
-# Group by country (if we had more data)
-print(f"\nAverage population: {df['population'].mean():,.0f}")
-print(f"Total population: {df['population'].sum():,}")
-```
-
-### More pandas functions (simple examples)
-
-Below are a few **methods** and **top-level functions** you will see often. They build on the same `DataFrame` idea: each column is a **Series**, and many operations run on the whole column at once.
+The script below ties **create → access → filter → add/edit → drop → inspect** together. Uncomment the CSV lines when you have real files.
 
 ```python
 import pandas as pd
 
-# Example: small table with a duplicate row and a missing value
-sites = pd.DataFrame({
-    "site_id": ["A1", "A2", "A1", "A3"],
-    "elevation_m": [120.5, None, 120.5, 98.0],
+# --- Create -------------------------------------------------------------------
+df = pd.DataFrame({
+    "city": ["London", "Paris", "Berlin", "Madrid"],
+    "population": [9_000_000, 2_161_000, 3_670_000, 3_200_000],
 })
+records = [{"site": "A1", "reading": 1.2}, {"site": "A2", "reading": 3.4}]
+sites = pd.DataFrame(records)
 
-# Missing values: detect and fill
-print(sites.isna().sum())  # NaN count per column
-sites["elevation_m"] = sites["elevation_m"].fillna(sites["elevation_m"].mean())
+# --- Access -------------------------------------------------------------------
+print(df["city"].iloc[0])                    # first city (by position)
+print(df.loc[1, "population"])               # row label 1, one cell
+big = df[df["population"] > 3_000_000]     # filter: cities over 3M
+print(big[["city", "population"]])
 
-# Categories: how often does each value appear?
-print(sites["site_id"].value_counts())
+# --- Add / edit ---------------------------------------------------------------
+df["country"] = ["UK", "France", "Germany", "Spain"]
+df.loc[1, "population"] = 2_200_000          # edit one cell
+df["pop_m"] = df["population"] / 1_000_000   # new derived column
 
-# Drop duplicate rows (keeps first by default)
-sites_clean = sites.drop_duplicates()
+# --- Delete -------------------------------------------------------------------
+df2 = df.drop(columns=["pop_m"])             # without one column
+df3 = df2.drop(index=3)                      # drop one row by index label
 
-# Select rows: by position (.iloc) or by a condition (.loc)
-print(sites_clean.iloc[0:2])  # first two rows
-print(sites_clean.loc[sites_clean["site_id"] == "A1"])
+# --- Useful functions (tabular I/O) ------------------------------------------
+# incoming = pd.read_csv("data/cities.csv")
+# df3.to_csv("data/cities_out.csv", index=False)
 
-# Rename columns and change dtypes
-sites_clean = sites_clean.rename(columns={"site_id": "site"})
-sites_clean["elev_int"] = sites_clean["elevation_m"].round(0).astype(int)
-
-# Read / write CSV files on disk (paths are strings)
-# df = pd.read_csv("data/sites.csv")
-# sites_clean.to_csv("data/sites_clean.csv", index=False)
-
-# Quick check: number of rows, columns, and unique values in one column
-print(len(sites_clean), sites_clean.shape)
-print(sites_clean["site"].nunique())
+print(df3.head())
+print(df3.info())
+print(df3["population"].mean())              # Series aggregation
 ```
+
+### A few more methods you will see
+
+| Task | Typical call |
+|------|----------------|
+| Sort rows | **`df.sort_values("population", ascending=False)`** |
+| Count missing per column | **`df.isna().sum()`** |
+| Fill missing | **`df["col"].fillna(value)`** |
+| Duplicates | **`df.drop_duplicates()`** |
+| Value frequencies | **`df["country"].value_counts()`** |
+| Column types | **`df.astype({"population": "float64"})`** |
 
 !!! tip "Pandas Tips"
-    - Use `df.head()` to see first few rows
-    - Use `df.info()` to see data types and missing values
-    - Use `df.describe()` for statistical summary
-    - Column names with spaces need brackets: `df['column name']`
-    - Use `pd.read_csv()` and `df.to_csv()` to move tables between Python and spreadsheet-friendly files
+    - Prefer **`df["column"]`** over **`df.column`** when column names have spaces or clash with method names.
+    - After **`drop`**, **`rename`**, or many filters, assign back: **`df = df.drop(...)`** unless you deliberately use **`inplace=True`**.
+    - Use **`df.info()`** early to see **dtypes** and **non-null counts**; use **`df.describe()`** for numeric columns.
+    - For CSV: **`pd.read_csv("path.csv")`** in, **`df.to_csv("path.csv", index=False)`** out (omit the index column unless you need it).
 
 ## Practice Problems
 
@@ -970,45 +899,43 @@ country_data = {
     print("\nData saved to country_analysis.csv")
     ```
 
-### Problem 4: File and JSON
+### Problem 4: File handling
 
-Practice reading and writing JSON on disk. Create a short script (or notebook cell sequence) that:
+Practice reading and writing **plain text** on disk. Create a short script (or notebook cell sequence) that:
 
 ```python
 # Your task:
-# 1. Create a list of dicts: at least two "stations" with keys name, lat, lon (floats).
-# 2. Write them to data/stations.json with indent=2 and ensure_ascii=False.
-# 3. Read the file back with json.load and print how many stations were loaded.
-# 4. Add a new station dict to the loaded list and overwrite the same JSON file.
+# 1. Create a list of strings: at least two lines, each "name,lat,lon" for a fictional station.
+# 2. Use pathlib to ensure a data/ folder exists; write the lines to data/stations.txt (UTF-8, one station per line).
+# 3. Read the file back and print how many non-empty lines were loaded.
+# 4. Open the same file in append mode ("a") and add one more station line.
 
-# Use pathlib.Path for the path; create the data/ folder if needed.
+# Use with open(..., encoding="utf-8") for every read/write.
 ```
 
 ??? success "Solution"
     ```python
-    import json
     from pathlib import Path
 
-    stations = [
-        {"name": "Alpha", "lat": 59.9, "lon": 10.7},
-        {"name": "Beta", "lat": 60.4, "lon": 5.3},
+    lines = [
+        "Alpha,59.9,10.7",
+        "Beta,60.4,5.3",
     ]
 
     data_dir = Path("data")
     data_dir.mkdir(parents=True, exist_ok=True)
-    path = data_dir / "stations.json"
+    path = data_dir / "stations.txt"
 
     with open(path, "w", encoding="utf-8") as f:
-        json.dump(stations, f, indent=2, ensure_ascii=False)
+        f.write("\n".join(lines) + "\n")
 
     with open(path, "r", encoding="utf-8") as f:
-        loaded = json.load(f)
+        loaded = [ln.strip() for ln in f if ln.strip()]
 
     print(f"Loaded {len(loaded)} stations")
 
-    loaded.append({"name": "Gamma", "lat": 58.0, "lon": 6.9})
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(loaded, f, indent=2, ensure_ascii=False)
+    with open(path, "a", encoding="utf-8") as f:
+        f.write("Gamma,58.0,6.9\n")
     ```
 
 ## Key Takeaways
@@ -1023,9 +950,9 @@ The lists below condense the main vocabulary and habits from this module. Use th
     - **Loops**: `for` over sequences and `while` when a condition drives repetition
     - **Functions**: Parameters, arguments, return values, and small reusable units
     - **Libraries**: Extend Python with NumPy, pandas, and other packages
-    - **Files & JSON**: `open()` with `with`, UTF-8, `pathlib`, `json.load`/`dump`/`loads`/`dumps`
+    - **Files**: `open()` with `with`, UTF-8, `pathlib`, text vs binary modes
     - **NumPy**: Fast numeric arrays, grids, and vectorized math
-    - **Pandas**: Tables, CSV I/O, filtering, and common column methods
+    - **Pandas**: `DataFrame` / `Series`, `loc` / `iloc`, add-edit-drop columns and rows, CSV I/O
     - **Data Analysis**: Basic operations on real-world datasets
 
 !!! tip "Best Practices"
@@ -1034,11 +961,11 @@ The lists below condense the main vocabulary and habits from this module. Use th
     - Use f-strings for string formatting
     - Handle edge cases (like division by zero)
     - Import only what you need from libraries
-    - Always use **`encoding="utf-8"`** for text and JSON files unless you have a specific reason not to
+    - Always use **`encoding="utf-8"`** for text files unless you have a specific reason not to
 
 ## Next Steps
 
-The course now turns from general Python to geographic data models and tools. You will reuse variables, collections, loops, functions, files and JSON, NumPy arrays, and pandas tables as soon as you load spatial datasets, rasters, and attribute tables. The next module introduces how those datasets are represented and what to watch for when coordinates and CRS enter the picture.
+The course now turns from general Python to geographic data models and tools. You will reuse variables, collections, loops, functions, files, NumPy arrays, and pandas tables as soon as you load spatial datasets, rasters, and attribute tables. The next module introduces how those datasets are represented and what to watch for when coordinates and CRS enter the picture.
 
 In the next module, we'll apply these Python skills to geospatial data, learning about:
 - Vector vs Raster data

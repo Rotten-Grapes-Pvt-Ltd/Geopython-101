@@ -6,6 +6,7 @@ icon: material/earth
 
 ## Learning Goals
 - Understand the difference between vector and raster data
+- Recognize common **raster** themes (continuous, categorical, multi-band) and how **TIFF / GeoTIFF** store grids and georeferencing
 - Learn about basic geometry types (Point, Line, Polygon)
 - Understand attribute tables and their relationship to geometries
 - Grasp what a CRS is (datum, units, geographic vs projected)
@@ -190,102 +191,55 @@ plt.show()
 }
 ```
 
-```python
-# Create a Polygon (exterior ring; Shapely may close the ring for you)
-poly = Polygon([(2, 1), (6, 1), (7, 4), (4, 6), (2, 4)])
+## Raster data in GIS
 
-x, y = poly.exterior.xy
-plt.fill(x, y, alpha=0.5, color='green', edgecolor='darkgreen', linewidth=2)
-plt.title("Polygon")
-plt.xlabel("x")
-plt.ylabel("y")
-plt.axis("equal")
-plt.grid()
-plt.show()
-```
+**Vector** data stores **objects** (points, lines, polygons) with coordinates and attributes. **Raster** data stores values on a **regular grid** of **pixels** (also called **cells**): each cell has a row/column index and usually **one or more numeric values** (bands). The grid is anchored in map space by **origin**, **cell size** (resolution), **extent**, and **CRS**—you will tie those ideas to CRS metadata in the next section.
 
-### Example file: point, line, and polygon together
+### How a raster differs from vector
 
-The repository includes a single **GeoJSON FeatureCollection** with one point, one line, and one polygon so you can practice I/O without hunting for data:
+| | **Vector** | **Raster** |
+|---|------------|------------|
+| **Geometry** | Exact vertices and edges | Uniform rectangles (pixels) |
+| **Best for** | Boundaries, networks, discrete features | Continuous fields, imagery, scanned maps |
+| **Storage** | Often smaller for sparse features | Can be large at fine resolution |
 
-**File:** [`data/example_point_line_polygon.geojson`](data/example_point_line_polygon.geojson)
+### Common kinds of raster (by what each pixel means)
 
-Load it with GeoPandas:
+- **Single-band continuous** — One real number per cell: **elevation (DEM)**, **slope**, **temperature**, **rainfall**, **population density**. Values interpolate conceptually between cells.
+- **Single-band categorical** — Integer **codes** per cell: **land cover** (forest = 5, water = 1), **soil class**, **admin zones**. The number is a **label**, not a quantity; a legend maps code → meaning.
+- **Multi-band** — Several values per cell, e.g. **red, green, blue** for color imagery, or many **spectral bands** (satellite). Display stacks bands into a color composite; analysis may use all bands.
+- **Binary / mask** — 0/1 (or no-data) for **study area**, **cloud mask**, **suitable / not suitable**.
 
-```python
-import geopandas as gpd
-from pathlib import Path
+The **same file format** (for example GeoTIFF) can hold any of the above; what changes is **band count**, **data type**, and **how you interpret** the numbers.
 
-# Path to the example file (adjust if your working directory is not the repo root)
-geojson_path = Path("docs/data/example_point_line_polygon.geojson")
-if not geojson_path.exists():
-    geojson_path = Path("data/example_point_line_polygon.geojson")
+### TIFF and GeoTIFF
 
-gdf = gpd.read_file(geojson_path)
-print(gdf[["name", "feature_type", "geometry"]])
-print(gdf.geometry.geom_type)
-```
+**TIFF** (Tagged Image File Format) is a flexible **image and raster container**: “tags” in the file header describe **image width and height**, **bits per sample**, **number of bands**, **compression** (often none or LZW/deflate for GIS), and optional **color maps**. TIFF is widely used because it supports **large files**, **lossless** storage, and **many bands**—ideal for elevation models and satellite tiles.
 
-You should see three rows with geometry types `Point`, `LineString`, and `Polygon`. Plot them together:
+**GeoTIFF** is a TIFF that adds **geospatial tags** (or a sidecar world file) so software knows **where each pixel lies on Earth**—CRS, cell size, and origin. In Python you will often open GeoTIFFs with **rasterio** or **xarray**; in desktop GIS with **QGIS** or **ArcGIS**. Module 4 goes deeper into reading and analyzing rasters; here the goal is to recognize **grid + bands + georeferencing** as the raster counterpart to **vector geometries + CRS**.
 
-```python
-import matplotlib.pyplot as plt
+![TIFF as a structured file: tags describe the raster layout on disk](assets/tiff_file.png)
 
-fig, ax = plt.subplots(figsize=(8, 8))
-gdf[gdf.geometry.geom_type == "Polygon"].plot(ax=ax, color="lightgreen", edgecolor="darkgreen", alpha=0.6)
-gdf[gdf.geometry.geom_type == "LineString"].plot(ax=ax, color="blue", linewidth=2)
-gdf[gdf.geometry.geom_type == "Point"].plot(ax=ax, color="red", markersize=80)
-ax.set_title("Point + LineString + Polygon (example GeoJSON)")
-ax.set_xlabel("Longitude")
-ax.set_ylabel("Latitude")
-plt.tight_layout()
-plt.show()
-```
+The diagram above emphasizes the **file as a header + pixel matrix**. The next figure zooms to the **grid**: each **pixel** is one storage unit; its **(row, col)** maps to ground coordinates once **geotransform** and **CRS** are known.
 
-## Attribute Tables
+![Pixels on a grid: each cell holds one or more band values](assets/tiff_pixel.png)
 
-Every geographic feature has **attributes** - descriptive information about that feature:
-
-```python
-# Example: City features with attributes
-city_features = [
-    {
-        "geometry": {"type": "Point", "coordinates": [-122.4194, 37.7749]},
-        "properties": {
-            "name": "San Francisco",
-            "population": 884000,
-            "country": "USA",
-            "founded": 1776,
-            "is_capital": False
-        }
-    },
-    {
-        "geometry": {"type": "Point", "coordinates": [-74.0060, 40.7128]},
-        "properties": {
-            "name": "New York",
-            "population": 8400000,
-            "country": "USA",
-            "founded": 1624,
-            "is_capital": False
-        }
-    }
-]
-```
-
-!!! info "Geometry + Attributes = Geographic Feature"
-    - **Geometry**: WHERE the feature is located
-    - **Attributes**: WHAT the feature is and its properties
-    - Together they create meaningful geographic information
+!!! tip "Raster vocabulary"
+    - **Resolution** — ground distance covered by one pixel edge (e.g. 10 m pixels).
+    - **Extent / bounding box** — outer limits of the raster in map coordinates.
+    - **NoData** — a sentinel value meaning “no observation here” (important for masks and mosaics).
 
 ## Coordinate Reference Systems (CRS)
 
-A **Coordinate Reference System (CRS)** is the rulebook that turns numbers in your file into **real positions on Earth**. It ties together:
+### What is a Coordinate Reference System (CRS)?
 
-- A **datum** (which mathematical model of the Earth you use, e.g. WGS 84)
-- **Axes and units** (degrees vs meters, which direction is “x”, etc.)
-- For **projected** CRS, a **map projection** (how the curved Earth is flattened to 2D)
+A **Coordinate Reference System (CRS)** is the complete **rulebook** that tells software how to interpret stored coordinates so they correspond to **real locations on or near the Earth’s surface**. Coordinates in a file are only numbers until you know:
 
-Without a CRS, a coordinate pair like `(-122.4194, 37.7749)` is ambiguous: degrees? meters? which hemisphere? Software uses the CRS metadata (often an **EPSG** code such as `EPSG:4326`) to interpret those numbers correctly.
+- **Which axes** you are using (e.g. east/north, longitude/latitude, or 3D X/Y/Z).
+- **Which units** apply (degrees, meters, feet, …).
+- **How those axes relate to the Earth**—through a **datum** (see below) and, for map coordinates, often a **map projection** that converts the curved Earth to a flat plane.
+
+Without a CRS, a pair like **−122.4194** and **37.7749** is **ambiguous**: are those **degrees** of longitude and latitude, or **meters** on some grid? Which hemisphere and which origin? GIS and Python libraries use **CRS metadata** attached to the layer (or embedded in formats like GeoTIFF) so every vertex or pixel corner is interpreted **consistently**. Getting that metadata **right** is as important as getting the geometry numbers right.
 
 ```mermaid
 graph TD
@@ -299,20 +253,38 @@ graph TD
     F --> I[UTM - Local accuracy]
 ```
 
-### Geographic vs projected CRS
+### Types of CRS
+
+CRS types differ by **what the coordinates measure** and **how they are arranged**. The two you will use most often in 2D mapping are **geographic** and **projected**.
 
 | | **Geographic CRS** | **Projected CRS** |
 |---|-------------------|-------------------|
 | **Coordinates** | Usually **longitude** and **latitude** in **degrees** | **Easting** and **northing** (or x/y) in **meters** (or feet) |
-| **Earth shape** | On a sphere or ellipsoid (angular) | Flattened map plane (distances/areas can be meaningful locally) |
-| **Examples** | WGS 84 — `EPSG:4326` | Web Mercator — `EPSG:3857`; UTM zones — e.g. `EPSG:32610` |
-| **Typical use** | GPS, GeoJSON storage, global exchange | Web maps, engineering, “how many meters apart?” |
+| **Earth shape** | Angles on a **reference ellipsoid** (or sphere) | A **flat map plane** derived by projection |
+| **Examples** | WGS 84 — **EPSG:4326** | Web Mercator — **EPSG:3857**; UTM zones — e.g. **EPSG:32610** |
+| **Typical use** | GPS, global exchange, GeoJSON storage | Web maps, engineering, local distance and area |
 
-**Latitude and longitude** are not a separate magic format: they are the normal way to write positions in a **geographic** CRS (especially WGS 84). In a **projected** CRS, the **same place on the ground** is written with **different numbers** (meters), not with lat/lon—unless you first **transform** back to geographic.
+**Latitude and longitude** are the usual way to express position in a **geographic** CRS (especially WGS 84). They are **not** a separate data model from “CRS”: they **are** the coordinate values for that CRS type. In a **projected** CRS, the **same ground point** is written with **different numbers** (typically large easting/northing values in meters), not as lon/lat, unless you **transform** the coordinates back to geographic form.
 
-### Same real-world location, different coordinate pairs
+Other CRS families appear in specialized work: **geocentric** CRS (X, Y, Z in meters from Earth’s center), **vertical** CRS (heights above a reference surface, important for hydrology and engineering), and **compound** CRS that combine horizontal and vertical definitions. For most web and regional GIS in this course, **geographic vs projected** is the main distinction.
 
-Take one fixed place: **near San Francisco** in WGS 84 as **longitude −122.4194°, latitude 37.7749°**. That is **one** spot on Earth. If you **reproject** the point to other CRS, the **stored x/y change**, but the **location does not**:
+### What is a datum?
+
+A **datum** is a **defined relationship** between a **mathematical model of the Earth** (usually an **ellipsoid** with fixed semi-major axis and flattening) and **real-world measurements** (control points, satellite orbits, national surveys). In plain terms: the datum answers **“which Earth shape and which origin/orientation are we using?”** so that latitude and longitude (or projected coordinates tied to that ellipsoid) line up with physical marks on the ground.
+
+Changing datum (for example from an older national realization to **WGS 84**) can shift reported coordinates by **meters**—small on a globe diagram, **large** for cadastral or construction work. A full CRS definition **includes** the datum (or references it through a standard like EPSG). When people say **“WGS 84”** in everyday GIS, they often mean both the **datum** and the **geographic CRS** built on it (**EPSG:4326**).
+
+### What are EPSG codes?
+
+The **EPSG** dataset (maintained by the **International Association of Oil & Gas Producers**, IOGP) is a widely used catalog of coordinate systems. Each entry has a **numeric code**—for example **4326** for WGS 84 geographic lon/lat, **3857** for Web Mercator, **32610** for WGS 84 / UTM zone 10N. Software stores these as identifiers such as **`EPSG:4326`**.
+
+An EPSG code is a **shorthand for a full definition**: axis order, units, datum, projection parameters, and sometimes area of use. Using a standard code **reduces mistakes** compared to typing projection parameters by hand, and it lets QGIS, ArcGIS, GDAL, and Python libraries agree on **one** interpretation. If someone shares **“EPSG:XXXX”**, they are pointing to that single, registry-defined CRS—not to a vague “kind of like WGS 84.”
+
+### What is reprojection?
+
+**Reprojection** (more formally, a **coordinate transformation** or **CRS transformation**) means: take geometry defined in **CRS A**, apply the correct mathematics, and express the **same locations** in **CRS B**. The **ground truth does not move**; only the **stored coordinate numbers** change.
+
+Example: one point **near San Francisco** in WGS 84 as **longitude −122.4194°, latitude 37.7749°**. After reprojection to other standard CRS, the **first and second coordinates** look like this (values are illustrative of the math; your software will reproduce them exactly):
 
 | CRS | EPSG | First coordinate (interpretation) | Second coordinate (interpretation) |
 |-----|------|-----------------------------------|-------------------------------------|
@@ -320,63 +292,49 @@ Take one fixed place: **near San Francisco** in WGS 84 as **longitude −122.419
 | WGS 84 / Pseudo-Mercator | **3857** | −13,627,665.27 (**meters**, easting) | 4,547,675.35 (**meters**, northing) |
 | WGS 84 / UTM zone 10N | **32610** | 551,130.77 (**meters**, easting) | 4,180,998.88 (**meters**, northing) |
 
-The **large meter values** are not “more precise” versions of lat/lon—they are a **different coordinate system** for the **same** point. You convert with `to_crs()` in GeoPandas (or equivalent in other libraries); never assume you can paste lat/lon into a projected system without transforming.
+The **large meter values** are not “more precise” lat/lon—they are **the same point** in a **different system**. You must use a **transformation** implemented by your GIS or library; **never** paste lon/lat values into a layer that is declared as a **meter-based projected CRS** without transforming them.
 
-```python
-import geopandas as gpd
-from shapely.geometry import Point
+**Reprojection** is not the same as **assigning** a CRS to data that had none: **assignment** says “these numbers **already are** in this system.” **Reprojection** **computes new numbers** for a **new** system. Doing the wrong one—reprojecting data that was actually mis-labeled—can silently corrupt positions.
 
-# One place on Earth: lon, lat in WGS 84 (geographic)
-lon, lat = -122.4194, 37.7749
-gdf = gpd.GeoDataFrame(geometry=[Point(lon, lat)], crs="EPSG:4326")
+### Common problems without CRS or with a wrong CRS
 
-# Same geometry, expressed in Web Mercator (meters)
-gdf_merc = gdf.to_crs("EPSG:3857")
-x_m, y_m = gdf_merc.geometry.iloc[0].x, gdf_merc.geometry.iloc[0].y
+**Missing CRS**
 
-# Same geometry, expressed in UTM zone 10N (meters)
-gdf_utm = gdf.to_crs("EPSG:32610")
-x_u, y_u = gdf_utm.geometry.iloc[0].x, gdf_utm.geometry.iloc[0].y
+- The file has coordinates but **no CRS metadata**. Many programs **guess** (often WGS 84) or treat the layer as **unknown**. Layers may **plot on top of each other by accident** in a small test area, then **fail** when combined with authoritative data.
+- **Raster** workflows suffer too: without CRS and georeferencing, pixels cannot be aligned with vectors or other rasters.
 
-print(f"EPSG:4326 (deg):  lon={lon}, lat={lat}")
-print(f"EPSG:3857 (m):    x={x_m:,.2f}, y={y_m:,.2f}")
-print(f"EPSG:32610 (m):   x={x_u:,.2f}, y={y_u:,.2f}")
-```
+**Wrong or mis-declared CRS**
 
-### Common mistake: “lat/lon” numbers with a projected CRS label
+- Values are **actually** longitude and latitude in **degrees**, but the layer is tagged **EPSG:3857** (meters). Software plots **−122.4** as **−122.4 meters**—nowhere near North America.
+- The opposite: projected meter coordinates labeled as **EPSG:4326** will stretch or stack features in nonsensical ways.
 
-If your values are really **degrees** (e.g. from GPS) but the file says **EPSG:3857** (meters), software will treat **−122.4** as **−122.4 meters** on the map—far from North America. Always **set the CRS to what the numbers actually are**, then **reproject** to the CRS you need for analysis or display.
+**Mixing layers without aligning CRS**
+
+- Two valid layers in **different** CRS will **not overlay correctly** until at least one is **transformed** to match the other’s CRS (or both to a common analysis CRS).
+- **Spatial joins**, **buffers in meters**, and **area** calculations all assume a **consistent** CRS story; mixing systems produces **wrong distances and topology**.
+
+**Using the wrong CRS for the job**
+
+- Measuring **distance** or **area** in **EPSG:4326** uses **degrees** along the ellipsoid or degree²—**not** intuitive meters or hectares for local sites. For many local analyses you **project** to a suitable **meter-based** CRS for the study region.
+
+**Datum and transformation confusion**
+
+- Reprojecting between two CRS that use **different datums** requires a **transformation path** (sometimes multiple steps). Using a default that does not match your jurisdiction’s recommended transformation can introduce **decimeter- to meter-level** shifts—critical for legal parcels and engineering.
 
 !!! tip "CRS workflow"
-    - **Store** global exchange data often as **WGS 84 / EPSG:4326** (or another agreed geographic CRS).
-    - **Reproject** to a **projected** CRS for **distance, area, or local mapping** in meters.
-    - **Never** mix two CRS in one map or spatial join without aligning them with `to_crs()`.
-
-### Why CRS Matters
-
-```python
-import geopandas as gpd
-import matplotlib.pyplot as plt
-
-# Load Natural Earth countries data
-world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
-
-# Check the current CRS
-print(f"Current CRS: {world.crs}")
-# Output: EPSG:4326 (WGS84 - latitude/longitude)
-
-# Display basic information
-print(f"Number of countries: {len(world)}")
-print(f"Columns: {list(world.columns)}")
-```
+    - **Record** the CRS your data **actually** use when you receive or create them.
+    - **Assign** metadata only when it reflects the truth; use **reprojection** when you need **different numbers** for a target CRS.
+    - **Store** global exchange data often as **WGS 84 / EPSG:4326** (or another agreed geographic CRS) when that matches the capture method.
+    - **Reproject** to a **projected** CRS for **distance, area, or local mapping** in meters where appropriate.
+    - **Align every layer to one CRS** (or transform on the fly consistently) before **overlay, spatial join, or merge** so geometries occupy the same coordinate space.
 
 ### Common Coordinate Reference Systems
 
 | CRS | EPSG Code | Description | Use Case |
 |-----|-----------|-------------|----------|
-| **WGS84** | 4326 | Latitude/Longitude | GPS, global data |
-| **Web Mercator** | 3857 | Web mapping | Google Maps, web apps |
-| **UTM** | Various | Local projections | Accurate measurements |
+| **WGS 84** | 4326 | Geographic longitude/latitude on the WGS 84 datum | GPS, GeoJSON, global interchange |
+| **Web Mercator** | 3857 | Pseudo-Mercator on a WGS 84 sphere; x/y in meters | Basemaps, many web tiles |
+| **UTM** | Zone-specific (e.g. 32610 for 10N) | Transverse Mercator bands, meters | Local mapping and measurement |
 
 ## Loading and Inspecting Vector Data
 
