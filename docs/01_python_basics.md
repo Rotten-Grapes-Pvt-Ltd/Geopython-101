@@ -657,89 +657,303 @@ For **variable-length text**, **pandas** `Series` of Python `object` strings or 
 
 ## 11. Pandas
 
-**pandas** is an open-source Python library for **tabular data**: tables with **named columns** and **row labels** (an **index**). Its main object is the **`DataFrame`** (many columns, many rows). Each column is a **`Series`**—a one-dimensional labeled array that often shares the same index as the parent table. Think **spreadsheet or SQL table in memory**, with rich methods for slicing, filtering, aggregating, and joining.
+**pandas** is an open-source Python library for **tabular data**: a table of **rows** and **named columns**, plus an optional **row index** (labels). The main type is the **`DataFrame`**. Each column is a **`Series`**—one column of values aligned to the same index. Operations are usually **column-wise** or **row-filtering**, similar to **SQL** or a **spreadsheet**, but scripted and reproducible.
+
+### Use cases
+
+- **Exploratory analysis** on CSV or database extracts: sort, filter, group, plot-ready columns.
+- **Cleaning survey or sensor tables**: fix missing values, parse dates, drop duplicates, rename fields.
+- **Merging** spreadsheets or API results on keys (joins), reshaping wide vs long tables.
+- **Preparing attributes** before or after GIS work: **GeoPandas** `GeoDataFrame` **is** a pandas `DataFrame` plus a geometry column, so **filter**, **merge**, and **aggregate** patterns transfer directly.
 
 ### Advantages
 
-- **Labeled rows and columns** — select by name (`df["population"]`) instead of only by position.
-- **Mixed types per column** — numbers, text, dates, and missing values (**`NaN`**) in one table without hand-built nested lists.
-- **Vectorized column operations** — add a whole column with one expression; many operations use fast NumPy-style code under the hood.
-- **Data cleaning helpers** — detect duplicates (**`drop_duplicates`**), missing values (**`isna`**, **`fillna`**), type casts (**`astype`**), renames (**`rename`**).
-- **File and API interchange** — **`read_csv`** / **`to_csv`** (and many other readers/writers) for workflows that round-trip with spreadsheets or databases.
-- **Geospatial companion** — **GeoPandas** builds on pandas for **attribute tables**; the same habits (filter, merge, groupby) apply to spatial layers.
+- **Labels** — refer to **`"population"`** instead of remembering column positions.
+- **Mixed types** — integers, floats, text, datetimes, and **missing values** in one table.
+- **Fast column math** — many operations delegate to **NumPy**-style vectorized code.
+- **Rich I/O** — **`read_csv`**, **`to_csv`**, and many other formats; easy exchange with Excel workflows.
+- **Ecosystem** — huge community, stable API, tight integration with **matplotlib**, **scikit-learn**, and **GeoPandas**.
 
-### Create a `DataFrame`
+Below, each **code block is short (about two or three lines)** so you can run or copy one idea at a time. Use **`import pandas as pd`** once per session. Unless a block defines its own table, **`df`** is the **two-row Oslo / Bergen** frame from the first **dict-of-columns** example—run that block first if you execute the snippets in order.
 
-Common constructors:
-
-- **`pd.DataFrame({ "col": […], … })`** — from a **dictionary** of column name → list of values (all lists the same length).
-- **`pd.DataFrame([{…}, {…}])`** — from a **list of row records** (each dict is one row; keys become columns).
-
-### Access data
-
-- **One column:** **`df["city"]`** (returns a **`Series`**). **Several columns:** **`df[["city", "population"]]`** (returns a **`DataFrame`**).
-- **By labels:** **`df.loc[row_index, "col"]`** — row/column names (with the default index, row labels are **`0, 1, 2, …`**).
-- **By position:** **`df.iloc[row_i, col_i]`** — integer positions, counting from zero.
-- **Filter rows:** **`df[df["population"] > 1_000_000]`** — boolean mask; keep rows where the condition is true.
-- **Quick views:** **`df.head(n)`**, **`df.tail(n)`**, **`df.shape`**, **`df.info()`**, **`df.describe()`** (numeric summary).
-
-### Add, edit, and delete
-
-- **Add a column:** assign like **`df["density"] = df["population"] / df["area_km2"]`**.
-- **Edit values:** **`df.loc[2, "city"] = "Munich"`** for one cell; or assign a whole column with aligned **`Series`**.
-- **Delete columns:** **`df.drop(columns=["density"], inplace=False)`** returns a **new** frame unless you pass **`inplace=True`** (many tutorials prefer reassignment: **`df = df.drop(...)`**).
-- **Delete rows:** **`df.drop(index=[0, 3])`** or slice to the rows you want to keep.
-- **Rename:** **`df.rename(columns={"old": "new"})`**.
-
-### Basics in code
-
-The script below ties **create → access → filter → add/edit → drop → inspect** together. Uncomment the CSV lines when you have real files.
+### Create a `DataFrame` from a dict of columns
 
 ```python
 import pandas as pd
-
-# --- Create -------------------------------------------------------------------
-df = pd.DataFrame({
-    "city": ["London", "Paris", "Berlin", "Madrid"],
-    "population": [9_000_000, 2_161_000, 3_670_000, 3_200_000],
-})
-records = [{"site": "A1", "reading": 1.2}, {"site": "A2", "reading": 3.4}]
-sites = pd.DataFrame(records)
-
-# --- Access -------------------------------------------------------------------
-print(df["city"].iloc[0])                    # first city (by position)
-print(df.loc[1, "population"])               # row label 1, one cell
-big = df[df["population"] > 3_000_000]     # filter: cities over 3M
-print(big[["city", "population"]])
-
-# --- Add / edit ---------------------------------------------------------------
-df["country"] = ["UK", "France", "Germany", "Spain"]
-df.loc[1, "population"] = 2_200_000          # edit one cell
-df["pop_m"] = df["population"] / 1_000_000   # new derived column
-
-# --- Delete -------------------------------------------------------------------
-df2 = df.drop(columns=["pop_m"])             # without one column
-df3 = df2.drop(index=3)                      # drop one row by index label
-
-# --- Useful functions (tabular I/O) ------------------------------------------
-# incoming = pd.read_csv("data/cities.csv")
-# df3.to_csv("data/cities_out.csv", index=False)
-
-print(df3.head())
-print(df3.info())
-print(df3["population"].mean())              # Series aggregation
+df = pd.DataFrame({"city": ["Oslo", "Bergen"], "pop": [700_000, 290_000]})
+print(df)
 ```
 
-### A few more methods you will see
+**Output:**
 
-| Task | Typical call |
-|------|----------------|
-| Sort rows | **`df.sort_values("population", ascending=False)`** |
-| Count missing per column | **`df.isna().sum()`** |
-| Fill missing | **`df["col"].fillna(value)`** |
-| Duplicates | **`df.drop_duplicates()`** |
-| Value frequencies | **`df["country"].value_counts()`** |
-| Column types | **`df.astype({"population": "float64"})`** |
+```text
+     city     pop
+0    Oslo  700000
+1  Bergen  290000
+```
+
+### Create a `DataFrame` from a list of row dicts
+
+```python
+df_records = pd.DataFrame([{"city": "Oslo", "pop": 700_000}, {"city": "Bergen", "pop": 290_000}])
+print(df_records)
+```
+
+**Output:**
+
+```text
+     city     pop
+0    Oslo  700000
+1  Bergen  290000
+```
+
+### Access one column (returns a `Series`)
+
+```python
+cities = df["city"]
+print(cities.iloc[0])
+```
+
+**Output:**
+
+```text
+Oslo
+```
+
+### Access several columns
+
+```python
+subset_cols = df[["city", "pop"]]
+print(subset_cols.head())
+```
+
+**Output:**
+
+```text
+     city     pop
+0    Oslo  700000
+1  Bergen  290000
+```
+
+### Access one cell by label (`loc`)
+
+```python
+val = df.loc[0, "pop"]
+print(val)
+```
+
+**Output:**
+
+```text
+700000
+```
+
+### Access by position (`iloc`)
+
+```python
+first_row_first_col = df.iloc[0, 0]
+print(first_row_first_col)
+```
+
+**Output:**
+
+```text
+Oslo
+```
+
+### Add a new column
+
+```python
+df["country"] = "Norway"
+print(df)
+```
+
+**Output:**
+
+```text
+     city     pop country
+0    Oslo  700000  Norway
+1  Bergen  290000  Norway
+```
+
+### Edit one cell
+
+```python
+df.loc[0, "pop"] = 710_000
+print(df)
+```
+
+**Output:**
+
+```text
+     city     pop country
+0    Oslo  710000  Norway
+1  Bergen  290000  Norway
+```
+
+### Filter rows (boolean condition)
+
+```python
+big = df[df["pop"] > 500_000]
+print(big)
+```
+
+**Output:**
+
+```text
+   city     pop country
+0  Oslo  710000  Norway
+```
+
+### Delete a column
+
+```python
+df2 = df.drop(columns=["country"])
+print(df2)
+```
+
+**Output:**
+
+```text
+     city     pop
+0    Oslo  710000
+1  Bergen  290000
+```
+
+### Delete a row by index label
+
+```python
+df3 = df2.drop(index=[1])
+print(df3)
+```
+
+**Output:**
+
+```text
+   city     pop
+0  Oslo  710000
+```
+
+### Detect missing values (`NaN`)
+
+```python
+df_m = pd.DataFrame({"a": [1.0, None], "b": [2, 3]})
+print(df_m.isna().sum())
+```
+
+**Output:**
+
+```text
+a    1
+b    0
+dtype: int64
+```
+
+### Fill missing values
+
+```python
+df_m["a"] = df_m["a"].fillna(0.0)
+print(df_m)
+```
+
+**Output:**
+
+```text
+     a  b
+0  1.0  2
+1  0.0  3
+```
+
+### Drop rows that contain any null
+
+```python
+df_n = pd.DataFrame({"x": [1.0, None], "y": [2.0, 3.0]})
+df_clean = df_n.dropna()
+print(df_clean)
+```
+
+**Output:**
+
+```text
+     x    y
+0  1.0  2.0
+```
+
+### Drop duplicate rows
+
+```python
+dups = pd.DataFrame({"id": [1, 1, 2], "v": [10, 10, 20]})
+print(dups.drop_duplicates())
+```
+
+**Output:**
+
+```text
+   id   v
+0   1  10
+2   2  20
+```
+
+### Rename columns
+
+```python
+df_r = df.rename(columns={"pop": "population"})
+print(df_r)
+```
+
+**Output:**
+
+```text
+     city  population country
+0    Oslo      710000  Norway
+1  Bergen      290000  Norway
+```
+
+### Sort rows
+
+```python
+df_s = df.sort_values("pop", ascending=False)
+print(df_s)
+```
+
+**Output:**
+
+```text
+     city     pop country
+0    Oslo  710000  Norway
+1  Bergen  290000  Norway
+```
+
+### Read and write CSV
+
+```python
+# df = pd.read_csv("data/cities.csv")
+# df.to_csv("data/out.csv", index=False)
+```
+
+**Output:** *(none in the console—paths on disk are read or written when you uncomment and run.)*
+
+### Quick inspection
+
+```python
+print(df.shape)
+print(df.describe())
+```
+
+**Output:**
+
+```text
+(2, 3)
+                 pop
+count       2.000000
+mean   500000.000000
+std    296984.848098
+min    290000.000000
+25%    395000.000000
+50%    500000.000000
+75%    605000.000000
+max    710000.000000
+```
 
 !!! tip "Pandas Tips"
     - Prefer **`df["column"]`** over **`df.column`** when column names have spaces or clash with method names.
