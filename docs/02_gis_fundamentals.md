@@ -6,13 +6,13 @@ icon: material/earth
 
 ## Learning Goals
 
-- Describe **GIS** as combining **where** (spatial data) and **what** (attributes) for analysis and maps
-- Contrast **vector** and **raster** data and give a typical use case for each
-- Recognize common **raster** kinds (continuous, categorical, multi-band) and the role of **TIFF / GeoTIFF** (tags, CRS, pixels on a grid)
-- Use **point, line, and polygon** geometry ideas and link features to **attribute tables**
-- Explain **CRS** in practical terms: **geographic vs projected**, **EPSG** codes, **datum** as context, and **reprojection** vs **assigning** CRS metadata
-- Spot common **CRS failures** (missing CRS, wrong tags, mixed CRS) and connect them to **misaligned or misleading** maps
-- Load and **inspect** vector data (columns, geometry types, CRS) in preparation for later Python modules
+- State what **GIS** does: combine **locations** (spatial data) with **properties** (attributes) to map, query, and decide
+- Compare **vector** and **raster** models and name one **typical use** for each in real projects
+- Outline **raster** variants (continuous, categorical, multi-band) and how **TIFF / GeoTIFF** tie **pixels**, **tags**, and **CRS** together
+- Relate **point, line, and polygon** (with sample **GeoJSON**) to **features** and their **attribute tables**
+- Read **CRS** metadata at a practical level: **geographic vs projected**, **EPSG** codes, **datum** in brief, **reprojection vs assigning**, and the **figures** that illustrate globe vs map plane
+- List common **CRS mistakes** (missing, mis-tagged, mixed systems) and why maps then look **wrong or misaligned**
+- Open and **inspect** vector layers (schema, geometry types, CRS) and relate **bad CRS** choices to the **visualization** examples in this module
 
 ## What is GIS?
 

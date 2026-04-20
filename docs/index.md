@@ -2,9 +2,9 @@
 icon: material/home
 ---
 
-# GeoPython 101
+# GeoPython
 
-Welcome to **GeoPython 101**—a **self-paced** introduction to **Python for geospatial analysis and visualization**. The material is written for learners who are new or returning to Python and want a clear path from syntax to **vector and raster workflows** in common open-source libraries.
+Welcome to **GeoPython**—a **self-paced** introduction to **Python for geospatial analysis and visualization**. The material is written for learners who are new or returning to Python and want a clear path from syntax to **vector and raster workflows** in common open-source libraries.
 
 ## Course map
 
@@ -35,18 +35,17 @@ graph LR
 
 ### [Module 2: GIS Fundamentals](02_gis_fundamentals.md)
 
-- GIS, **vector vs raster**, geometry types (point, line, polygon) with sample GeoJSON
-- **Raster overview**: continuous vs categorical vs multi-band data; **TIFF / GeoTIFF** and bundled diagrams under `docs/assets/`
-- **CRS**: what a CRS is, types (geographic vs projected), **datum**, **EPSG**, **reprojection**, common mistakes without correct metadata
-- Vector data loading and inspection (including **Natural Earth**-style examples where the notebooks reference them)
-- **Practice**: CRS and data-inspection exercises as in the module
+- GIS, **vector vs raster**, geometry types with sample **GeoJSON**
+- **Raster**: continuous / categorical / multi-band; **TIFF / GeoTIFF** and diagrams under `docs/assets/`
+- **CRS**: geographic vs projected, **EPSG**, datum in brief, reproject vs assign, common mistakes, and **CRS figures** in the chapter
+- Load and inspect vector data (**Natural Earth**-style paths where used) and **wrong-CRS** map examples
 
 ### [Module 3: Vector Data & Analysis](03_vector_analysis.md)
 
-- Vector formats (GeoJSON, Shapefile, GeoPackage, and others) and **Shapely** operations (buffer, union, intersection, predicates)
-- **GeoPandas**: `GeoDataFrame`, I/O, attributes, reprojection for analysis, spatial joins and overlays
-- **Basics assignment** (before the advanced GeoPandas track): **geojson.io**, small tables, Shapely + GeoPandas workflows **without** a CRS-change homework track
-- **Practice problems** in the module (European analysis, spatial relationships, etc., as documented there)
+- **Vector** concepts, formats, and **Shapely** (buffer, union, intersection, predicates)
+- **GeoPandas**: `GeoDataFrame`, read–edit–reproject–export, attribute and spatial filters
+- **Basics assignment** (before advanced topics): **geojson.io**, Shapely + small GeoPandas tasks (no CRS-change homework in that block)
+- **Spatial joins**, **overlays**, new geometries, and **practice problems** as in the module
 
 ### [Module 4: Raster Data & Analysis](04_raster_analysis.md)
 
