@@ -8,7 +8,8 @@ icon: material/language-python
 
 This module builds a foundation in Python syntax and core data structures so you can read scripts and write small programs confidently. The outcomes below are the skills you should recognize and practice before moving on to geospatial libraries. Use the code examples and exercises to connect each bullet to working code.
 
-- Understand what Python is and where it's used
+- Relate **programming** (instructions, source code, running programs) to **Python** and typical **use cases**
+- Contrast **program RAM** (volatile objects, garbage collection) with **database** storage on **disk** and how data moves between them
 - Work with variables and basic data types (`int`, `float`, `str`, `bool`)
 - Use lists, tuples, sets, and dictionaries effectively
 - Branch with conditionals (`if`, `elif`, `else`)
@@ -18,6 +19,23 @@ This module builds a foundation in Python syntax and core data structures so you
 - Read and write text files safely (paths, encoding, `with open`, `pathlib`)
 - Use NumPy arrays for numeric vectors and grids
 - Read and shape tabular data with pandas
+
+## What is programming?
+
+**Programming** is the act of writing **precise instructions** that a computer can follow. Those instructions are expressed in a **programming language** as **source code** (text files with rules about spelling and structure called **syntax**). A tool called an **interpreter** or **compiler** turns that code into actions: reading data, calculating, showing output, talking to files or the network, and so on.
+
+A **program** bundles many instructions into something you can **run** again and again with different inputs. Good programs are **clear**, **correct**, and **maintainable**—which is why we use readable languages, comments, and small reusable pieces (such as **functions**, which you will see later in this module).
+
+Programming is not tied to one domain: the same ideas apply to websites, games, automation, and **geospatial analysis**. **Python** is one widely used language for all of these; the rest of this module teaches **Python’s** building blocks so you can read and write geospatial scripts with confidence.
+
+### Memory in programming
+
+**Memory** usually means **RAM** (random access memory)—fast, **volatile** storage: when your program stops or the machine powers off, what was only in RAM is **gone** unless you saved it somewhere persistent. While Python runs, it keeps **your objects** here: numbers, strings, lists.
+
+When you write **`population = 8_400_000`**, Python **allocates** a piece of RAM for that integer and binds the name **`population`** to it. Names are like **labels**; several variables can refer to the same object, and when nothing refers to an object anymore, Python’s **garbage collector** can **reclaim** that RAM for other use—this automatic **memory management** is why you rarely `free()` by hand as in some lower-level languages.
+
+![Python memory (conceptual): objects live in the process heap, names refer to objects, and unreferenced objects can be collected](assets/python_memory.jfif)
+
 
 ## What is Python?
 
