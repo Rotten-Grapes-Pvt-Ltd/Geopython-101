@@ -152,6 +152,7 @@ The three core **vector** geometries are **point** (one location), **line** (ord
 
 **TIFF** (Tagged Image File Format) is a flexible **image and raster container**: “tags” in the file header describe **image width and height**, **bits per sample**, **number of bands**, **compression** (often none or LZW/deflate for GIS), and optional **color maps**. TIFF is widely used because it supports **large files**, **lossless** storage, and **many bands**—ideal for elevation models and satellite tiles.
 
+When those tags include **georeferencing** (CRS, pixel size, origin), the file is usually called **GeoTIFF**. For a **quick browser preview** of a GeoTIFF you generated or downloaded, you can use tools such as the **[Pozyx Online GeoTIFF Viewer](https://www.pozyx.io/free-tools/online-geotiff-viewer)**; Module 4 discusses limits and when to switch to **QGIS** or **Python**.
 
 ![TIFF as a structured file: tags describe the raster layout on disk](assets/tiff_file.png)
 Pixels in a TIFF file are small grid cells, each storing a value representing color, intensity, or geographic data information.

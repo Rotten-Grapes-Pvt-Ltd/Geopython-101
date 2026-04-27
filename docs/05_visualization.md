@@ -12,6 +12,214 @@ icon: material/chart-line
 - Add popups and interactive elements
 - Export and print maps
 
+## Matplotlib
+
+**Matplotlib** is Python’s most widely used library for **drawing charts and maps as static pictures**—line graphs, scatter plots, histograms, bar charts, and (with a little help from **GeoPandas**) **maps** with coastlines, regions, and points.
+
+Think of it in three plain ideas:
+
+1. **Figure and axes** — You usually start with **`fig, ax = plt.subplots(...)`**. The **figure** is the whole canvas (the window or image file). The **axes** (`ax`) is the drawing area where you plot: titles, labels, limits, and the actual geometry all attach to **`ax`**.
+2. **`pyplot` (`plt`)** — The **`matplotlib.pyplot`** module is the **simple, step-by-step** interface you’ll see in tutorials: **`plt.plot`**, **`plt.show`**, **`plt.savefig`**. Under the hood it still uses figures and axes; **`plt.subplots`** is just a convenient way to create them.
+3. **Static output** — Matplotlib is built for **non-interactive** figures: you run code, get an image (on screen or PNG/PDF). For **pan/zoom maps in the browser**, this module also introduces **Leafmap** later; Matplotlib stays the workhorse for **publication-style** and **notebook** maps.
+
+You do **not** need to memorize every function at once. The patterns in this module—**`plot`**, **`scatter`**, **colors**, **legends**, **`GeoDataFrame.plot(ax=...)`**—repeat across most geospatial visualization workflows.
+
+Below are **small Matplotlib + rasterio recipes** for a single-band GeoTIFF (paths point at the bundled **`/content/Tiff_1.tif`**; change **`path`** if your file lives elsewhere). Each block is meant to copy into a notebook as a starting point.
+
+### Display raster image
+
+**`imshow`** draws the 2D array as a grid of colored cells. Pass **`extent=[left, right, bottom, top]`** from **`src.bounds`** so the image lines up with map coordinates (here **lon/lat** for **EPSG:4326**). **`origin="upper"`** matches typical raster row order (north at the top).
+
+```python
+import matplotlib.pyplot as plt
+import rasterio
+
+path = "/content/Tiff_1.tif"
+with rasterio.open(path) as src:
+    band = src.read(1)
+    bounds = src.bounds  # left, bottom, right, top
+
+extent = [bounds.left, bounds.right, bounds.bottom, bounds.top]
+fig, ax = plt.subplots(figsize=(8, 6))
+ax.imshow(band, cmap="gray", extent=extent, origin="upper")
+ax.set_xlabel("Longitude")
+ax.set_ylabel("Latitude")
+ax.set_title("Raster band 1")
+plt.tight_layout()
+plt.show()
+```
+
+**Example output:**
+
+![Display raster image — example output](assets/Display_raster_image.png)
+
+### Apply colormap
+
+A **colormap** maps numeric cell values to colors. **`cmap`** picks the palette (try **`terrain`**, **`viridis`**, **`RdYlGn`**). Add **`plt.colorbar`** so readers can relate color to value; use **`vmin` / `vmax`** to stretch contrast when needed.
+
+```python
+import matplotlib.pyplot as plt
+import rasterio
+
+path = "/content/Tiff_1.tif"
+with rasterio.open(path) as src:
+    band = src.read(1).astype(float)
+    b = src.bounds
+    extent = [b.left, b.right, b.bottom, b.top]
+
+fig, ax = plt.subplots(figsize=(8, 6))
+im = ax.imshow(band, cmap="terrain", extent=extent, origin="upper")
+plt.colorbar(im, ax=ax, label="Pixel value")
+ax.set_title("Raster with colormap")
+plt.tight_layout()
+plt.show()
+```
+
+**Example output:**
+
+![Raster with colormap — example output](assets/apply_colormap.png)
+
+### Histogram (pixel distribution)
+
+A **histogram** counts how many pixels fall into value bins. It summarizes the whole band (distribution, skew, outliers). Use **`flatten()`** on the 2D array; **`np.nanpercentile`** helps choose **`range=(lo, hi)`** so a few extreme pixels do not squash the bars.
+
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+import rasterio
+
+path = "/content/Tiff_1.tif"
+with rasterio.open(path) as src:
+    arr = src.read(1).astype(float)
+
+lo, hi = np.nanpercentile(arr, [2, 98])
+fig, ax = plt.subplots(figsize=(8, 4))
+ax.hist(arr.flatten(), bins=80, range=(lo, hi), color="steelblue", edgecolor="white", linewidth=0.3)
+ax.set_xlabel("Pixel value")
+ax.set_ylabel("Count")
+ax.set_title("Histogram of band 1")
+plt.tight_layout()
+plt.show()
+```
+
+**Example output:**
+
+![Histogram of band 1 — example output](assets/Histogram.png)
+
+### Remove NoData / black pixels
+
+Rasters often mark missing cells with a **NoData** sentinel or they appear as a flat **black** edge. For plotting, replace those values with **`np.nan`** so **`imshow`** does not paint them, or mask them before **`hist`**. Always read **`src.nodata`** from the file when it is set.
+
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+import rasterio
+
+path = "/content/Tiff_1.tif"
+with rasterio.open(path) as src:
+    band = src.read(1).astype(float)
+    nd = src.nodata
+    b = src.bounds
+    extent = [b.left, b.right, b.bottom, b.top]
+
+if nd is not None:
+    band = np.where(band == nd, np.nan, band)
+
+fig, ax = plt.subplots(figsize=(8, 6))
+ax.imshow(band, cmap="viridis", extent=extent, origin="upper")
+ax.set_title("Raster with NoData hidden (NaN)")
+plt.tight_layout()
+plt.show()
+```
+
+**Example output:**
+
+![Raster with NoData hidden — example output](assets/Remove_NoData.png)
+
+### Zoom / crop view
+
+**Zooming** only changes what Matplotlib shows: call **`set_xlim`** and **`set_ylim`** on the same full raster. **Cropping** loads a smaller **window** with **`from_bounds`**, which saves memory on large GeoTIFFs. Use **`plotting_extent`** so **`imshow`**’s **`extent`** matches the window’s georeferencing.
+
+```python
+import matplotlib.pyplot as plt
+import rasterio
+from rasterio.mask import mask
+import json
+
+path = "/content/Tiff_1.tif"
+
+# Your GeoJSON polygon
+geojson = {
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "coordinates": [[
+          [73.66053541139414, 20.069929645956293],
+          [73.66053541139414, 20.039907375765722],
+          [73.71140637660173, 20.039907375765722],
+          [73.71140637660173, 20.069929645956293],
+          [73.66053541139414, 20.069929645956293]
+        ]],
+        "type": "Polygon"
+      }
+    }
+  ]
+}
+
+# Extract geometry
+shapes = [feature["geometry"] for feature in geojson["features"]]
+
+with rasterio.open(path) as src:
+    cropped, transform = mask(src, shapes, crop=True)
+
+# Plot
+plt.figure(figsize=(8, 6))
+plt.imshow(cropped[0], cmap="terrain")
+plt.title("Cropped TIFF using GeoJSON")
+plt.axis("off")
+plt.show()
+```
+
+**Example output:**
+
+![Cropped view — example output](assets/zoom_crop_view.png)
+
+### Multiple subplots
+
+**`plt.subplots(nrows, ncols)`** returns a grid of axes so you can compare **the same band** with different **cmaps**, or **histogram + map**, side by side. Keep **`extent`** consistent across map panels so geography aligns.
+
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+import rasterio
+
+path = "/content/Tiff_1.tif"
+with rasterio.open(path) as src:
+    band = src.read(1).astype(float)
+    b = src.bounds
+    extent = [b.left, b.right, b.bottom, b.top]
+
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+im0 = axes[0].imshow(band, cmap="terrain", extent=extent, origin="upper")
+axes[0].set_title("terrain")
+plt.colorbar(im0, ax=axes[0], fraction=0.046)
+
+im1 = axes[1].imshow(band, cmap="magma", extent=extent, origin="upper")
+axes[1].set_title("magma")
+plt.colorbar(im1, ax=axes[1], fraction=0.046)
+
+plt.suptitle("Same raster, two colormaps")
+plt.tight_layout()
+plt.show()
+```
+
+**Example output:**
+
+![Same raster with two colormaps — example output](assets/same_raster_two_colormap.png)
+
 ## Setting Up the Environment
 
 ```python

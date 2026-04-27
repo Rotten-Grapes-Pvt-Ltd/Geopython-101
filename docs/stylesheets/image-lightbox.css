@@ -1,0 +1,81 @@
+/* Click-to-expand: anchor wraps thumbnail; script opens overlay */
+a.js-lightbox-trigger {
+  display: inline-block;
+  max-width: 100%;
+}
+
+a.js-lightbox-trigger img {
+  max-width: 100%;
+  height: auto;
+  vertical-align: middle;
+  cursor: zoom-in;
+  border-radius: 4px;
+}
+
+.image-lightbox-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: min(3rem, 5vw);
+  box-sizing: border-box;
+  background: rgba(0, 0, 0, 0.9);
+  cursor: zoom-out;
+}
+
+.image-lightbox-img {
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+  cursor: default;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  border-radius: 4px;
+}
+
+.image-lightbox-close {
+  position: absolute;
+  top: 0.75rem;
+  right: 1rem;
+  z-index: 10001;
+  margin: 0;
+  padding: 0.25rem 0.6rem;
+  font-size: 2rem;
+  line-height: 1;
+  color: #fff;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.image-lightbox-close:hover,
+.image-lightbox-close:focus {
+  background: rgba(255, 255, 255, 0.15);
+  outline: none;
+}
+
+.image-lightbox-close:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+/* Doc-body images: click to zoom (see image-lightbox.js; mirrors JS selectors) */
+article.md-typeset img:not([data-no-lightbox]),
+.md-content__inner img:not([data-no-lightbox]),
+.md-content img:not([data-no-lightbox]),
+[role="main"] img:not([data-no-lightbox]) {
+  cursor: zoom-in;
+}
+
+/* Do not suggest zoom on chrome / nav icons */
+.md-header img,
+.md-sidebar img,
+.md-nav img,
+.md-footer img,
+.md-search img {
+  cursor: default;
+}

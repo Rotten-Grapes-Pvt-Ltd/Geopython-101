@@ -32,24 +32,25 @@ When you **search for a place** on **Google Maps**, ask for **directions**, or t
 
 ### Everyday maps (examples)
 
-Route planning, local search, and “what’s near me?” are the same family of questions as many GIS workflows—here are a few familiar screenshots (your apps may look slightly different):
+Route planning, local search, and “what’s near me?” are the same family of questions as many GIS workflows—here are a few familiar screenshots (your apps may look slightly different). **Click an image** to open it **full screen** (this works for **most figures across the site**); click the dark backdrop or **×**, or press **Escape**, to close.
 
 ### 1. Route Search in Google Maps
 
 When you search for a route on Google Maps, for example from Nashik to Mumbai, it displays the best possible path. Do you know how this routing system works behind the scenes?
 
-![Driving directions between two cities (example: Nashik to Mumbai)](assets/nsk_to_mum.png)
+<a href="assets/nsk_to_mum.png" class="js-lightbox-trigger"><img src="assets/nsk_to_mum.png" alt="Driving directions between two cities (example: Nashik to Mumbai)" loading="lazy" decoding="async" /></a>
+
 ### 2. Hotel Search
 
 When you search for hotels, such as “hotels in Nashik,” Google Maps shows a list of nearby hotels. Do you know how it identifies and ranks these results?
 
-![Hotel and place search around a city (example: Nashik area)](assets/hotesl_nashik.png)
+<a href="assets/hotesl_nashik.png" class="js-lightbox-trigger"><img src="assets/hotesl_nashik.png" alt="Hotel and place search around a city (example: Nashik area)" loading="lazy" decoding="async" /></a>
 
 ### 3. Nearby Place Search (Distance-based)
 
 When you search for places within a specific distance, such as 1 km or 10 km, the system returns nearby results. Do you know how it calculates and filters locations based on distance?
 
-![Nearest colleges or schools from a location (proximity search)](assets/nearest_colleges.png)
+<a href="assets/nearest_colleges.png" class="js-lightbox-trigger"><img src="assets/nearest_colleges.png" alt="Nearest colleges or schools from a location (proximity search)" loading="lazy" decoding="async" /></a>
 
 ## Modules
 
