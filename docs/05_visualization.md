@@ -345,6 +345,34 @@ m.to_html("leafmap_export.html")
 print("Saved leafmap_export.html")
 ```
 
+## Basics assignment: Matplotlib & Leafmap
+
+These tasks recap the **core visualization patterns** in this module: make a clear static figure with **Matplotlib**, then build an interactive map with **Leafmap**. Use the bundled raster **`assets/tiff/Tiff_1.tif`** (and the example screenshots in **`docs/assets/`**) to keep the setup simple.
+
+!!! tip "Where to run these"
+    - In notebooks, end a Leafmap cell with **`m`** to display the map widget.
+    - If you run in **Colab**, your files may live under **`/content/`** instead of **`assets/`**.
+
+1. **Display a raster** — Use `rasterio.open(...)` + `imshow` to display **band 1** of **`assets/tiff/Tiff_1.tif`** with an `extent` from `src.bounds`.
+
+2. **Colormap + legend** — Re-plot the same band with a different `cmap` (e.g. `terrain`) and add a `colorbar`.
+
+3. **Histogram** — Plot the pixel distribution (ignore NoData if present). Write one sentence describing what the histogram shape suggests (e.g. many mid-values vs many extremes).
+
+4. **Mask NoData** — Convert `src.nodata` values to `np.nan` and confirm your map no longer paints those pixels.
+
+5. **Crop a view** — Read a window with `from_bounds(...)` and plot only that area (a “zoomed-in” raster view).
+
+6. **Leafmap basemap** — Create `leafmap.Map(...)`, add at least one basemap, and enable `add_layer_control()`.
+
+7. **Leafmap marker** — Add a marker near your raster extent (or any location you choose) and confirm it appears at the right place.
+
+8. **Leafmap GeoJSON** — Add GeoJSON (either the inline `geojson_data` example from this module or `assets/examples/example.geojson`) and toggle it on/off in the layer control.
+
+9. **Export** — Save your final Leafmap view as HTML using `to_html("my_map.html")` and open the file in a browser.
+
+Submit your notebook (`.ipynb`) or script (`.py`) plus any exported HTML files your instructor requests.
+
 
 #
 #

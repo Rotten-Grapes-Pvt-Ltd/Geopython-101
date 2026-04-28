@@ -82,7 +82,7 @@ When you search for places within a specific distance, such as 1 km or 10 km, th
 
 - Raster as a **grid** (resolution, extent, **CRS**, **NoData**, bands, dtypes)
 - **`rasterio`** recipes and workflows: read/inspect, stats, mask/clip, merge, **resampling**; bundled **`Tiff_1.tif`** / **`Tiff_2.tif`** in **`docs/assets/tiff/`**
-- Raster–vector integration, **NoData** handling, and **practice** (elevation-style and multi-criteria examples)
+- Raster–vector integration, **NoData** handling, a **basics assignment** on bundled GeoTIFFs (before **Advance Analytics**), and **practice** (elevation-style and multi-criteria examples)
 
 ### [Module 5: Visualization with Matplotlib & Leafmap](05_visualization.md)
 

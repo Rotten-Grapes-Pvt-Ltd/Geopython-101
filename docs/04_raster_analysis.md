@@ -11,6 +11,7 @@ icon: material/grid
 - Clip rasters using vector boundaries
 - Combine raster and vector data analysis
 - Handle NoData values and data types
+- Complete the **basics assignment** (bundled **`Tiff_1.tif`** / **`Tiff_2.tif`**, small **`rasterio`** scripts) before the **Advance Analytics** walkthrough
 
 ## Introduction to Raster Data
 
@@ -397,7 +398,37 @@ print(f"Resampled: {src.height}x{src.width} → {new_height}x{new_width}")
 
 For **upsampling** (more pixels), set **`factor`** between 0 and 1 (for example **`factor = 0.5`** doubles rows and columns) and consider **`Resampling.bilinear`** instead of **`average`**. For **warping to another CRS or bounds**, use **`rasterio.warp.reproject`** with a destination array and transform from **`calculate_default_transform`** (covered in more detail later in this module).
 
+## Basics assignment: GeoTIFFs & rasterio
+
+These tasks recap the **short recipes** above: open a raster, read metadata and arrays, summarize values, plot one band, filter by value, merge two tiles, resample, and sanity-check in a viewer. Use the bundled **`assets/tiff/Tiff_1.tif`** and **`assets/tiff/Tiff_2.tif`** (see the **Sample GeoTIFFs** download buttons in **Raster file formats**). On **Colab**, copy the files to **`/content/`** and change paths accordingly.
+
+!!! tip "Paths"
+    From a notebook whose working directory is the repo root, **`assets/tiff/Tiff_1.tif`** resolves like the rest of this chapter. If you run from **`docs/`**, use **`assets/tiff/...`** the same way as in **`05_visualization.md`**.
+
+1. **Open and describe** — With **`rasterio.open`**, print **`src.shape`**, **`src.crs`**, **`src.dtypes`**, and **`src.bounds`** for **`Tiff_1.tif`**. In one sentence, say whether **`shape`** is `(bands, height, width)` or **`(height, width)`** in your **`rasterio`** version and what that implies for **`read(1)`**.
+
+2. **Band statistics** — Read **band 1** into a **NumPy** array (float). If **`src.nodata`** is set, mask it to **`np.nan`** before stats. Print **min, max, mean** (using **`np.nanmin`** / **`np.nanmax`** / **`np.nanmean`** as needed).
+
+3. **Quick map** — Plot band 1 with **`matplotlib.pyplot.imshow`**, passing **`extent=[left, right, bottom, top]`** from **`src.bounds`** and **`origin="upper"`**. Label **x** / **y** with the axis names implied by your CRS (e.g. lon/lat for **EPSG:4326**).
+
+4. **Value filter** — Build a **boolean mask** that keeps pixels between the **10th and 90th percentile** of the band (see **§ Filter pixels**). Write a new GeoTIFF **`Tiff_1_filtered.tif`** (or any output name your instructor specifies) with the same CRS/transform logic as the recipe.
+
+5. **Merge** — Use **`rasterio.merge.merge`** on **`Tiff_1.tif`** and **`Tiff_2.tif`**. Save **`Tiff_merge_lab.tif`**. Print the **mosaic** shape and confirm **`out_transform`** differs from either source’s transform.
+
+6. **Resample** — Downsample **`Tiff_1.tif`** by **factor 2** using **`read(..., out_shape=..., resampling=Resampling.average)`** (or the **Affine**-scaling pattern in **§ Resampling**). Save **`Tiff_1_half.tif`** and print **before vs after** width and height.
+
+7. **Optional clip** — Use **`rasterio.mask.mask`** with the **inline GeoJSON** box from **§ Clip a raster** (or your own polygon in **WGS 84** that intersects the raster). Save **`Tiff_1_clipped_lab.tif`**.
+
+8. **Visual check** — Upload **`Tiff_1.tif`** (or your merged output) to the **[Pozyx Online GeoTIFF Viewer](https://www.pozyx.io/free-tools/online-geotiff-viewer)** or open in **QGIS**. Note one thing you see that **`imshow`** alone did not emphasize (e.g. basemap context, legend, scale).
+
+Submit your **output GeoTIFFs** (or paths in a shared drive), your **`.py` or `.ipynb`**, and short answers for any “explain” prompts your instructor assigns.
+
+---
+
 # Advance Analytics
+
+The sections below use a **longer teaching workflow** (environment setup through practice problems). If you have not worked through the **Basics assignment** yet, consider doing that first so **`rasterio`**, **`numpy`**, and **matplotlib** patterns are fresh.
+
 ## Setting Up the Environment
 
 ```python
