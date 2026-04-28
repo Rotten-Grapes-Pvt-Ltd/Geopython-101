@@ -20,9 +20,17 @@ Think of it in three plain ideas:
 
 1. **Figure and axes** — You usually start with **`fig, ax = plt.subplots(...)`**. The **figure** is the whole canvas (the window or image file). The **axes** (`ax`) is the drawing area where you plot: titles, labels, limits, and the actual geometry all attach to **`ax`**.
 2. **`pyplot` (`plt`)** — The **`matplotlib.pyplot`** module is the **simple, step-by-step** interface you’ll see in tutorials: **`plt.plot`**, **`plt.show`**, **`plt.savefig`**. Under the hood it still uses figures and axes; **`plt.subplots`** is just a convenient way to create them.
-3. **Static output** — Matplotlib is built for **non-interactive** figures: you run code, get an image (on screen or PNG/PDF). For **pan/zoom maps in the browser**, this module also introduces **Leafmap** later; Matplotlib stays the workhorse for **publication-style** and **notebook** maps.
+3. **Static output** — Matplotlib is built for **non-interactive** figures: you run code, get an image (on screen or PNG/PDF). For **pan/zoom maps in the browser**, use **Leafmap** (**§ 2. Leafmap** below); Matplotlib stays the workhorse for **publication-style** and **notebook** maps.
 
 You do **not** need to memorize every function at once. The patterns in this module—**`plot`**, **`scatter`**, **colors**, **legends**, **`GeoDataFrame.plot(ax=...)`**—repeat across most geospatial visualization workflows.
+
+Install the libraries used in the **Matplotlib** examples below (terminal, or a notebook cell with **`!pip`**):
+
+```bash
+pip install matplotlib
+pip install numpy
+pip install rasterio
+```
 
 Below are **small Matplotlib + rasterio recipes** for a single-band GeoTIFF (paths point at the bundled **`/content/Tiff_1.tif`**; change **`path`** if your file lives elsewhere). Each block is meant to copy into a notebook as a starting point.
 
@@ -220,6 +228,128 @@ plt.show()
 
 ![Same raster with two colormaps — example output](assets/same_raster_two_colormap.png)
 
+## 2. Leafmap
+
+**Leafmap** is a Python library for **interactive maps** in notebooks (Jupyter, Colab, VS Code). It sits on top of **ipyleaflet** and **folium** (depending on backend) and talks to **Leaflet** in the browser: you get **pan, zoom, layer toggles, and popups** without building JavaScript yourself. Use it when you want to **explore** data on a basemap, **compare** layers, or **share** a map as HTML—after **Matplotlib** or **GeoPandas** when you need a **live** map rather than a static figure.
+
+Paths below use **`assets/...`** as in this repo; on Colab, point at **`/content/...`** instead. End a cell with **`m`** to display the widget (or use your environment’s equivalent).
+
+Install **Leafmap** and, if you use **`add_raster`** on local GeoTIFFs, **`localtileserver`** (see the raster subsection below):
+
+```bash
+pip install leafmap
+pip install localtileserver
+```
+
+### Create map
+
+A **`leafmap.Map`** is the canvas: **`center=[latitude, longitude]`** (lat first) and **`zoom`** set the initial view; **`height`** sizes the widget in the notebook.
+
+```python
+import leafmap
+
+m = leafmap.Map(center=[20.07, 73.70], zoom=11, height="520px")
+m
+```
+
+### Add basemap
+
+**`add_basemap`** stacks a **named tile layer** (streets, imagery, terrain). Discover names with **`leafmap.basemaps.keys()`**. Add **`add_layer_control()`** so readers can turn layers on or off.
+
+```python
+import leafmap
+
+m = leafmap.Map(center=[20.07, 73.70], zoom=10)
+m.add_basemap("Esri.WorldImagery")
+m.add_basemap("OpenTopoMap")
+m.add_layer_control()
+m
+```
+
+**Example output:**
+
+![Leafmap — basemaps and layer control](assets/base_map_Added.png)
+
+### Add marker
+
+**`add_markers`** drops one or more **pin or circle** markers at **`[lat, lon]`** positions (a list of lists for many points). Use **`shape`**, **`color`**, and **`popup`** arguments to customize when your leafmap version supports them.
+
+```python
+import leafmap
+
+m = leafmap.Map(center=[20.07, 73.70], zoom=11)
+m.add_markers(markers=[[20.07, 73.70]], shape="marker")
+m
+```
+
+**Example output:**
+
+![Leafmap — marker added](assets/leafmap_point_Added.png)
+
+### Add GeoJSON
+
+**`add_geojson`** loads **vector features** from a **URL or file path**. Set **`layer_name`** for the layer list; optional styling arguments depend on your **leafmap** version (see [add vector](https://leafmap.org/notebooks/10_add_vector/)).
+
+```python
+import leafmap
+
+m = leafmap.Map(center=[20, 78], zoom=5, height="520px")
+
+# GeoJSON as Python dict
+geojson_data = {
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {"name": "My Area"},
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[
+                    [73.71, 20.09],
+                    [73.69, 20.07],
+                    [73.72, 20.06],
+                    [73.73, 20.08],
+                    [73.71, 20.09]
+                ]]
+            }
+        }
+    ]
+}
+
+# Add directly (no file needed)
+m.add_geojson(geojson_data, layer_name="GeoJSON Area")
+
+m.add_layer_control()
+m
+```
+
+**Example output:**
+
+![Leafmap — GeoJSON on map](assets/leafmap_geojson.png)
+
+### Export map
+
+**`to_html`** writes a **standalone HTML** file you can open in a browser or host on the web. Build the map first, then export; very heavy layers can make large files.
+
+```python
+import leafmap.foliumap as leafmap   # ✅ use folium backend
+
+m = leafmap.Map(center=[20.07, 73.70], zoom=10)
+m.add_basemap("CartoDB.Positron")
+
+# ✅ correct method
+m.add_marker(location=[20.07, 73.70])
+
+m.to_html("leafmap_export.html")
+
+print("Saved leafmap_export.html")
+```
+
+
+#
+#
+# Advance
+
 ## Setting Up the Environment
 
 ```python
@@ -352,32 +482,6 @@ ax.set_ylim(35, 75)
 
 plt.tight_layout()
 plt.show()
-```
-
-## 2. Introduction to Leafmap
-
-### What is Leafmap?
-
-**Leafmap** is a Python package for interactive mapping and geospatial analysis built on top of ipyleaflet and folium. It provides an easy-to-use interface for creating interactive maps.
-
-```python
-# Create a basic leafmap
-m = leafmap.Map(center=[20, 0], zoom=2)
-m
-```
-
-### Basic Map Creation
-
-```python
-# Create map with custom settings
-m = leafmap.Map(
-    center=[40, -100],  # [latitude, longitude]
-    zoom=4,
-    height='600px'
-)
-
-# Display the map
-m
 ```
 
 ## 3. Changing Basemaps

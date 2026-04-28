@@ -57,43 +57,44 @@ When you search for places within a specific distance, such as 1 km or 10 km, th
 ### [Module 1: Python Basics](01_python_basics.md)
 
 - **Programming**, **RAM vs databases** (volatile memory, disk persistence, diagram), and **Python** in context
-- Variables, types, operators, strings, and collections (lists, tuples, sets, dictionaries)
-- Control flow (`if`, loops), functions, and imports
-- **Text files**: paths, UTF-8, `with open`, `pathlib`
-- **NumPy**: `ndarray`, vectorized math, optional **string dtypes** and `np.char`
+- Variables, types, **strings**, and collections (lists, tuples, sets, dictionaries)
+- **Conditionals**, **`for` / `while`**, functions, and **imports**
+- **Text files**: paths, UTF-8, `with open`, **`pathlib`**
+- **NumPy**: `ndarray`, vectorized math
 - **pandas**: `DataFrame` / `Series`, create, access, filter, add/edit/drop, missing values, CSV I/O
 - **Practice problems** with collapsible solutions (cities, weather, countries, files, pandas)
 
 ### [Module 2: GIS Fundamentals](02_gis_fundamentals.md)
 
-- GIS, **vector vs raster**, geometry types with sample **GeoJSON**
-- **Raster**: continuous / categorical / multi-band; **TIFF / GeoTIFF** and diagrams under `docs/assets/`
-- **CRS**: geographic vs projected, **EPSG**, datum in brief, reproject vs assign, common mistakes, and **CRS figures** in the chapter
-- Load and inspect vector data (**Natural Earth**-style paths where used) and **wrong-CRS** map examples
+- What **GIS** does: locations + attributes; **vector vs raster** and typical uses
+- **Vector**: point, line, polygon (with sample **GeoJSON**); **raster** variants (continuous, categorical, multi-band) and **TIFF / GeoTIFF** (figures under **`docs/assets/`**)
+- **CRS**: geographic vs projected, **EPSG**, datum in brief, **reproject vs assign**, common mistakes, and **CRS figures** in the chapter
+- Open and **inspect** vector layers and relate **wrong-CRS** choices to the map examples (**Natural Earth**-style paths where used)
 
 ### [Module 3: Vector Data & Analysis](03_vector_analysis.md)
 
-- **Vector** concepts, formats, and **Shapely** (buffer, union, intersection, predicates)
-- **GeoPandas**: `GeoDataFrame`, read–edit–reproject–export, attribute and spatial filters
-- **Basics assignment** (before advanced topics): **geojson.io**, Shapely + small GeoPandas tasks (no CRS-change homework in that block)
-- **Spatial joins**, **overlays**, new geometries, and **practice problems** as in the module
+- **Vector** formats, **multipart** geometries, **Shapely** (buffer, union, intersection, predicates)
+- **GeoPandas**: `GeoDataFrame`, **`geometry`** column, CRS on the table, read–filter–reproject–export
+- **Basics assignment** path: **geojson.io**, Shapely + small GeoPandas tasks before advanced topics
+- **Spatial joins**, **overlays**, creating new geometries, exports, and **practice problems**
 
 ### [Module 4: Raster Data & Analysis](04_raster_analysis.md)
 
-- Raster structure, resolution, extent, **NoData**, dtypes
-- **rasterio**: read, inspect, compute, clip with vectors, combine with vector context
-- **Practice**: elevation and suitability-style workflows described in the module
+- Raster as a **grid** (resolution, extent, **CRS**, **NoData**, bands, dtypes)
+- **`rasterio`** recipes and workflows: read/inspect, stats, mask/clip, merge, **resampling**; bundled **`Tiff_1.tif`** / **`Tiff_2.tif`** in **`docs/assets/tiff/`**
+- Raster–vector integration, **NoData** handling, and **practice** (elevation-style and multi-criteria examples)
 
 ### [Module 5: Visualization with Matplotlib & Leafmap](05_visualization.md)
 
-- **Matplotlib** static maps with **GeoPandas** layers
-- **leafmap** (Folium / ipyleaflet stack) for interactive maps: basemaps, layers, popups, export
-- **Practice**: exercises built around the chapter (maps and layer controls)
+- **Matplotlib**: figures/axes, **`GeoDataFrame.plot`**, and **raster** plots with **`rasterio`** (display, colormap, histogram, NoData masking, window/crop, overlays, subplots); **`pip install`** **matplotlib**, **numpy**, **rasterio**
+- **Leafmap**: interactive maps—create map, **basemaps**, **markers**, **GeoJSON**, **`to_html`** export; **`pip install leafmap`** and optional **`localtileserver`**; example screenshots in **`docs/assets/`**
+- Further sections: **GeoPandas** layer stacks and choropleths, **popups**, **export/print**, and optional **ipyleaflet** for deeper widget control
 
 ### [Module 6: Next Steps & Learning Path](06_next_steps.md)
 
 - Recap of skills, **portfolio** and project ideas
-- Pointers to advanced topics (e.g. Streamlit-style apps, ML, big data) and curated resources—not a fourth duplicate of the core lessons
+- Intermediate Python, cloud GIS, databases, and **Streamlit**-style directions
+- Pointers to advanced topics (ML, big data, DevOps) and curated resources—without repeating the six core modules
 
 ## Prerequisites
 
@@ -103,7 +104,8 @@ When you search for places within a specific distance, such as 1 km or 10 km, th
 
 ## Data and materials in this repository
 
-- **Bundled examples** under **`docs/assets/`** (e.g. sample GeoJSON, diagrams, packaged outputs used in the vector chapter).
+- **Bundled examples** under **`docs/assets/`**: sample **GeoJSON** (including **`assets/examples/`**), diagrams, map screenshots, and packaged outputs used in the vector, raster, and visualization chapters.
+- **Sample GeoTIFFs** **`Tiff_1.tif`** and **`Tiff_2.tif`** in **`docs/assets/tiff/`** for raster and visualization exercises (download buttons also appear in the raster module).
 - **Natural Earth** and similar teaching layers appear in several chapters; download links and paths are given inside each module where they apply.
 - **geojson.io** is referenced explicitly in the **vector basics assignment** for drawing and exporting GeoJSON.
 
@@ -113,7 +115,7 @@ When you search for places within a specific distance, such as 1 km or 10 km, th
     - Small **Python scripts and notebooks** that load, clean, and summarize tables (**pandas**) and arrays (**NumPy**)
     - **Vector workflows** with **GeoPandas** and **Shapely** (read, filter, reproject, spatial join, export)
     - **Raster workflows** with **rasterio** (read, compute, clip, respect NoData)
-    - **Static and interactive maps** (**matplotlib** + **leafmap**), suitable as starting points for a portfolio README or report figures
+    - **Static** maps and **raster figures** (**matplotlib** + **rasterio**) and **interactive** maps (**Leafmap**), suitable as starting points for a portfolio README or report figures
 
 ## Core stack (mind map)
 
@@ -133,7 +135,7 @@ mindmap
       rasterio
     Visualization
       matplotlib
-      leafmap
+      Leafmap
     Data
       Repo assets GeoJSON
       Natural Earth teaching layers
@@ -155,7 +157,7 @@ After working through the modules, you should be able to:
     - Explain **vector vs raster**, common **file formats**, and **CRS** metadata at a practical level
     - Use **GeoPandas** and **Shapely** for common vector operations and exports
     - Use **rasterio** for read/compute/clip patterns and **NoData** awareness
-    - Produce **static** and **interactive** maps with **matplotlib** and **leafmap**
+    - Produce **static** maps and **raster plots** with **matplotlib** (and **rasterio** where used) and **interactive** maps with **Leafmap**
 
 !!! check "Practical habits"
     - Inspect **CRS** and **dtypes** before analysis
