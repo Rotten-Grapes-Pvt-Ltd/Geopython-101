@@ -5,28 +5,28 @@ icon: material/grid
 # Module 4: Raster Data & Analysis
 
 ## Learning Goals
-- Understand raster data structure and properties
+- Explain **raster** data in simple terms (grid of pixels, cell values, resolution, extent, CRS, NoData)
 - Load and inspect raster files with rasterio
 - Perform raster calculations and statistics
 - Clip rasters using vector boundaries
 - Combine raster and vector data analysis
 - Handle NoData values and data types
+- Complete the **basics assignment** (bundled **`Tiff_1.tif`** / **`Tiff_2.tif`**, small **`rasterio`** scripts) before the **Advance Analytics** walkthrough
 
 ## Introduction to Raster Data
 
-**Raster data** represents continuous phenomena as a grid of cells (pixels), where each cell contains a value representing some measurement or classification. Think of it as a digital photograph where each pixel has a specific value instead of a color.
+**In the simplest terms, a raster is a checkerboard of numbers on a map.** Imagine **graph paper** laid over an area: every **square** (cell) holds **one value**—elevation, temperature, a land-cover code, or how “bright” the ground is in a satellite band. The squares are usually the **same size** on the ground (for example 30 m × 30 m), and together they cover a **rectangle** of territory. There is no outline of a road or a lake stored as a line or polygon; instead, **each square stores whatever is true in that patch of ground** (often an average or sample for the whole square).
 
-### Key Raster Concepts
+It helps to think of a raster as a **2D table** (rows × columns) where each cell has **(row, column) → value**, plus **metadata** that says **where that table sits on Earth** (origin, cell size, CRS). A **photo** is also a raster: each pixel has red, green, blue values. **GIS rasters** use the same grid idea, but the “colour” might be **height**, **rainfall**, or **forest = 5, water = 1** instead of RGB.
 
-**Grid Structure**: Rasters are organized in rows and columns, creating a matrix of cells. Each cell represents a specific geographic area on Earth's surface.
+### Key ideas (plain language)
 
-**Resolution**: The size of each pixel, typically measured in meters. A 30m resolution means each pixel represents a 30m × 30m area on the ground.
-
-**Extent**: The geographic boundary of the raster, defined by minimum and maximum X and Y coordinates.
-
-**Coordinate Reference System (CRS)**: Defines how the raster's coordinates relate to locations on Earth.
-
-**NoData Values**: Special values (like -9999) that represent areas with no data or invalid measurements.
+- **Grid** — Fixed **rows and columns** of cells (often called **pixels**). Each cell is one ground patch.
+- **Cell value** — Usually **one number per cell**; **satellite** scenes can have **several numbers** per cell (**bands**), like extra columns glued to the same square.
+- **Resolution** — **How wide one cell is on the ground** (e.g. 10 m). Smaller cells = more detail = **more rows and columns** and **bigger files**.
+- **Extent** — The **outer box** of the raster: smallest and largest **x / y** (or lon / lat) the grid covers.
+- **CRS** — The **rule** that turns column/row positions into **real places** on Earth (see Module 2 if CRS is new to you).
+- **NoData** — A **sentinel** value meaning “no measurement here” (cloud, sea mask, edge of study area). It is **not** the same as zero.
 
 ```mermaid
 graph TD
@@ -76,6 +76,24 @@ graph TD
 - **Medium resolution** (10-30m): Regional studies, land cover mapping
 - **Low resolution** (100m-1km): Global studies, climate modeling
 
+#### Same scene in GeoTIFF: **10 m** vs **250 m** spatial resolution
+
+**Spatial resolution** is the **ground width of one pixel**. A **10 m** GeoTIFF divides the landscape into **small squares**; a **250 m** GeoTIFF uses **much larger squares** to cover the same hills, fields, and settlements. Both can be valid products—they answer different questions.
+
+| | **10 m pixels** | **250 m pixels** |
+|---|-----------------|------------------|
+| **Detail** | **Sharper**: narrow roads, field edges, and small patches stay visible at map scale | **Smoother / blockier**: one value **averages** a big patch of ground, so fine features **blend together** |
+| **Rows & columns** | **Many** cells for the same map extent → **larger file**, slower to process | **Few** cells → **smaller file**, faster summaries over big regions |
+| **Typical use** | Site-scale work, building footprints, trail mapping | Regional or global overview, climate grids, coarse land cover |
+
+**Important:** **lower** resolution (bigger metres per pixel) does **not** mean a “clearer” picture in the sense of **sharp edges**—it usually means **less** spatial detail, but the map can look **less noisy** when you are zoomed **out**, because each pixel hides small variations inside its big footprint. **Higher** resolution (smaller metres per pixel) is what makes **small** features **easier to see** when you zoom **in**.
+
+Below, the **same kind of GeoTIFF** is shown at **~10 m** and **~250 m** cell size (illustrative exports). Compare how edges and texture change.
+
+![GeoTIFF visualized at about 10 m ground resolution—finer grid, more detail](assets/10_m_resolution_tiff.png)
+
+![GeoTIFF visualized at about 250 m ground resolution—coarser grid, broader averaging per pixel](assets/250_m_resolution_tiff.png)
+
 **Temporal Resolution**: How often data is collected
 
 - **Daily**: Weather data, some satellites
@@ -91,6 +109,14 @@ graph TD
 ### Raster File Formats
 
 **GeoTIFF (.tif/.tiff)**: Most common format, supports georeferencing and multiple bands
+
+Sample GeoTIFFs for practice (in **`assets/tiff/`** in this repo):
+
+[Click to download Tiff_1.tif](assets/tiff/Tiff_1.tif){ .md-button .md-button--primary }
+[Click to download Tiff_2.tif](assets/tiff/Tiff_2.tif){ .md-button .md-button--primary }
+
+!!! tip "Preview a GeoTIFF in the browser"
+    If you want a **quick visual check** that a file opens on a map with plausible alignment—without QGIS or Python yet—try the free **[Pozyx Online GeoTIFF Viewer](https://www.pozyx.io/free-tools/online-geotiff-viewer)** (upload your `.tif` in the browser). It is aimed at **RGB-style rasters**, common **CRS** tags, and fast validation; for **many-band scientific rasters**, **COG streaming**, or heavy analysis, use **QGIS** / **rasterio** as described later in this module. See Pozyx’s page for current **limits** and what the tool does **not** support.
 
 **NetCDF (.nc)**: Excellent for scientific data with multiple dimensions (time, depth)
 
@@ -123,6 +149,285 @@ graph TD
 **Currency**: How recent the data is
 
 **Lineage**: Documentation of data sources and processing steps
+
+## Raster operations with rasterio (short recipes)
+
+The snippets below are **minimal patterns** you can copy into a notebook or script. Paths are placeholders—point them at your own **GeoTIFF** (or other GDAL-readable) files. The longer **Setting up the environment** section that follows uses the same libraries in a full teaching workflow.
+
+### 1. Open and read a raster file
+
+```python
+import rasterio
+
+path = "assets/tiff/Tiff_1.tif"  # bundled practice GeoTIFF
+with rasterio.open(path) as src:
+    band1 = src.read(1)          # 2D NumPy array, first band (height × width)
+    profile = src.profile        # driver, dtype, nodata, transform, crs, size
+    crs_epsg = src.crs.to_epsg() if src.crs else None
+    crs_label = f"EPSG:{crs_epsg}" if crs_epsg else str(src.crs)
+    print(src.shape, crs_label, src.dtypes[0])
+```
+
+Example output for **`Tiff_1.tif`**:
+
+```text
+(692, 1663) EPSG:4326 float32
+```
+
+`read(1)` loads **band 1** into memory; for large files you can use **windows** or **out_shape** later to read only part of a band.
+
+### 2. What are “raster statistics”?
+
+**Statistics** here are **numeric summaries** of the pixel values in a band (or in a region you care about): **minimum**, **maximum**, **mean** (average), **standard deviation**, **percentiles**, counts of valid pixels, and so on. They answer questions like “how high is this DEM on average?” or “what range do reflectance values span?” You usually **ignore NoData** when computing them so missing cells do not skew the result.
+
+### 3. Calculate statistics (one band, respect NoData)
+
+```python
+import numpy as np
+import rasterio
+
+with rasterio.open("assets/tiff/Tiff_1.tif") as src:
+    arr = src.read(1).astype("float64")
+    nodata = src.nodata
+
+    if nodata is not None:
+        arr = np.where(arr == nodata, np.nan, arr)
+
+# Basic stats
+print("Min:", np.nanmin(arr))
+print("Max:", np.nanmax(arr))
+print("Mean:", np.nanmean(arr))
+print("Median:", np.nanmedian(arr))
+print("Std Dev:", np.nanstd(arr))
+print("Variance:", np.nanvar(arr))
+
+# Percentiles
+print("25th Percentile:", np.nanpercentile(arr, 25))
+print("50th Percentile (Median):", np.nanpercentile(arr, 50))
+print("75th Percentile:", np.nanpercentile(arr, 75))
+
+# Count info
+print("Total Pixels:", arr.size)
+print("Valid Pixels:", np.count_nonzero(~np.isnan(arr)))
+print("NoData Pixels:", np.count_nonzero(np.isnan(arr)))
+```
+
+Example output when run on the bundled **`Tiff_1.tif`**:
+
+```text
+Min: -0.11472345888614655
+Max: 0.6778202652931213
+Mean: 0.24052893210664816
+Median: 0.22149499505758286
+Std Dev: 0.13968990308740697
+Variance: 0.019513269024569155
+25th Percentile: 0.15612491592764854
+50th Percentile (Median): 0.22149499505758286
+75th Percentile: 0.32683808356523514
+Total Pixels: 1150796
+Valid Pixels: 1150796
+NoData Pixels: 0
+```
+
+### 4. Filter pixels by value (keep cells in a range, mask the rest)
+
+Build a **boolean mask**, then either write a **new GeoTIFF** or set unwanted pixels to **NoData** before saving.
+
+```python
+import numpy as np
+import rasterio
+from rasterio.enums import Resampling
+
+with rasterio.open("/content/Tiff_1.tif") as src:
+    arr = src.read(1).astype("float32")
+    profile = src.profile.copy()
+    mask = (arr >= 0.1) & (arr <= 0.5)   # keep elevations 100–500 (example)
+    out = np.where(mask, arr, src.nodata).astype(profile["dtype"])
+
+profile.update(dtype=out.dtype, count=1, compress="deflate")
+with rasterio.open("/content/Tiff_1_filter.tif", "w", **profile) as dst:
+    dst.write(out, 1)
+```
+
+**Example visualization** (bundled **`Tiff_1.tif`**: band 1 before masking, then after keeping only the middle value range and setting the rest to NoData—the same idea as the code above):
+
+![Tiff_OG — original raster before the value filter](assets/Tiff_OG.png)
+
+![Tiff_filter — raster after filtering; pixels outside the kept range are masked](assets/Tiff_filter.png)
+
+Adjust thresholds to your units; always set **`nodata`** in **`profile`** if you use a sentinel.
+
+### 5. Clip a raster using a polygon
+
+**`rasterio.mask.mask`** expects an iterable of **GeoJSON-like geometries**: plain Python **`dict`**s with **`"type"`** and **`"coordinates"`** (same structure as **`.geojson`** on disk). The polygon’s **coordinate order must match the raster’s CRS** (for example lon/lat if the DEM is **EPSG:4326**; if the DEM is in **metres**, use projected corners instead, or reproject the polygon first).
+
+**Polygon inline as GeoJSON (`dict`)**
+
+```python
+import rasterio
+from rasterio.mask import mask
+
+# GeoJSON Polygon: outer ring must close (first point = last point)
+clip_poly = {
+    "type": "Polygon",
+    "coordinates": [
+        [
+            [
+              73.71042841436719,
+              20.09023103896574
+            ],
+            [
+              73.69665791730623,
+              20.074091366211377
+            ],
+            [
+              73.71214563805651,
+              20.063933096227032
+            ],
+            [
+              73.7259168550645,
+              20.066013154915694
+            ],
+            [
+              73.72492563666324,
+              20.077312229882054
+            ],
+            [
+              73.72123577059406,
+              20.087440203990184
+            ],
+            [
+              73.71042841436719,
+              20.09023103896574
+            ]
+        ]
+    ],
+}
+geom = [clip_poly]
+
+with rasterio.open("/content/Tiff_1.tif") as src:
+    clipped, transform = mask(src, geom, crop=True, nodata=src.nodata)
+    meta = src.meta.copy()
+    meta.update({"height": clipped.shape[1], "width": clipped.shape[2], "transform": transform})
+
+with rasterio.open("/content/Tiff_1_clipped.tif", "w", **meta) as dst:
+    dst.write(clipped)
+```
+
+**Example visualization** (clipped, cropped raster after **`mask(..., crop=True)`** on **`Tiff_1.tif`** with the polygon above):
+
+![Tiff_clipped — output extent and pixels inside the clip polygon](assets/Tiff_Clipped.png)
+
+### 6. Merge two rasters into one mosaic
+
+**`rasterio.merge.merge`** aligns inputs on a common grid and pastes them into a larger array (same CRS and compatible bands work best; otherwise **reproject** first).
+
+```python
+import rasterio
+from rasterio.merge import merge
+
+src_files = ["/content/Tiff_1.tif", "/content/Tiff_2.tif"]
+srcs = [rasterio.open(p) for p in src_files]
+mosaic, out_transform = merge(srcs)
+
+out_meta = srcs[0].meta.copy()
+out_meta.update({"height": mosaic.shape[1], "width": mosaic.shape[2], "transform": out_transform})
+for s in srcs:
+    s.close()
+
+with rasterio.open("/content/Tiff_merge.tif", "w", **out_meta) as dst:
+    dst.write(mosaic)
+```
+
+**Example visualization** (mosaic from **`Tiff_1.tif`** and **`Tiff_2.tif`** merged with **`rasterio.merge.merge`**):
+
+![Tiff_merge — combined extent after merging the two GeoTIFFs](assets/Tiff_merge.png)
+
+### 7. Resampling (resize resolution)
+
+**Resampling** changes how pixels are **aggregated or interpolated** when you **change the grid size** (fewer or more rows/columns) while keeping (or defining) the **same geographic extent**. **Downsampling** uses fewer pixels (coarser resolution); **upsampling** uses more pixels (finer resolution). Pick a method that matches your data: **`average`** or **`mode`** often suit downsampling continuous or categorical rasters; **`bilinear`** is common for smooth continuous surfaces; **`nearest`** preserves class codes when upsampling labels.
+
+**Read at a new resolution, then write a GeoTIFF** with an updated **affine transform** so the file stays correctly georeferenced:
+
+```python
+import rasterio
+from rasterio.enums import Resampling
+from rasterio.transform import Affine
+
+src_path = "/content/Tiff_1.tif"
+dst_path = "/content/Tiff_1_resampled.tif"
+factor = 2  # >1 = downsample, <1 = upsample
+
+with rasterio.open(src_path) as src:
+    # New dimensions
+    new_height = int(src.height / factor)
+    new_width = int(src.width / factor)
+
+    # Read & resample
+    data = src.read(
+        out_shape=(src.count, new_height, new_width),
+        resampling=Resampling.average
+    )
+
+    # Update transform
+    transform = src.transform * Affine.scale(
+        src.width / new_width,
+        src.height / new_height
+    )
+
+    # Update metadata
+    profile = src.profile
+    profile.update({
+        "height": new_height,
+        "width": new_width,
+        "transform": transform
+    })
+
+# Save output
+with rasterio.open(dst_path, "w", **profile) as dst:
+    dst.write(data)
+
+print(f"Resampled: {src.height}x{src.width} → {new_height}x{new_width}")
+```
+
+**Example visualization** (pixel grid before and after resampling **`Tiff_1.tif`** with a downsampling factor, same idea as the code above):
+
+![pixel_before_resampling — full-resolution raster before resampling](assets/pixel_before_resampling.png)
+
+![pixel_after_resampling — raster after resampling to a coarser grid](assets/pixel_after_resampling.png)
+
+For **upsampling** (more pixels), set **`factor`** between 0 and 1 (for example **`factor = 0.5`** doubles rows and columns) and consider **`Resampling.bilinear`** instead of **`average`**. For **warping to another CRS or bounds**, use **`rasterio.warp.reproject`** with a destination array and transform from **`calculate_default_transform`** (covered in more detail later in this module).
+
+## Basics assignment: GeoTIFFs & rasterio
+
+These tasks recap the **short recipes** above: open a raster, read metadata and arrays, summarize values, plot one band, filter by value, merge two tiles, resample, and sanity-check in a viewer. Use the bundled **`assets/tiff/Tiff_1.tif`** and **`assets/tiff/Tiff_2.tif`** (see the **Sample GeoTIFFs** download buttons in **Raster file formats**). On **Colab**, copy the files to **`/content/`** and change paths accordingly.
+
+!!! tip "Paths"
+    From a notebook whose working directory is the repo root, **`assets/tiff/Tiff_1.tif`** resolves like the rest of this chapter. If you run from **`docs/`**, use **`assets/tiff/...`** the same way as in **`05_visualization.md`**.
+
+1. **Open and describe** — With **`rasterio.open`**, print **`src.shape`**, **`src.crs`**, **`src.dtypes`**, and **`src.bounds`** for **`Tiff_1.tif`**. In one sentence, say whether **`shape`** is `(bands, height, width)` or **`(height, width)`** in your **`rasterio`** version and what that implies for **`read(1)`**.
+
+2. **Band statistics** — Read **band 1** into a **NumPy** array (float). If **`src.nodata`** is set, mask it to **`np.nan`** before stats. Print **min, max, mean** (using **`np.nanmin`** / **`np.nanmax`** / **`np.nanmean`** as needed).
+
+3. **Quick map** — Plot band 1 with **`matplotlib.pyplot.imshow`**, passing **`extent=[left, right, bottom, top]`** from **`src.bounds`** and **`origin="upper"`**. Label **x** / **y** with the axis names implied by your CRS (e.g. lon/lat for **EPSG:4326**).
+
+4. **Value filter** — Build a **boolean mask** that keeps pixels between the **10th and 90th percentile** of the band (see **§ Filter pixels**). Write a new GeoTIFF **`Tiff_1_filtered.tif`** (or any output name your instructor specifies) with the same CRS/transform logic as the recipe.
+
+5. **Merge** — Use **`rasterio.merge.merge`** on **`Tiff_1.tif`** and **`Tiff_2.tif`**. Save **`Tiff_merge_lab.tif`**. Print the **mosaic** shape and confirm **`out_transform`** differs from either source’s transform.
+
+6. **Resample** — Downsample **`Tiff_1.tif`** by **factor 2** using **`read(..., out_shape=..., resampling=Resampling.average)`** (or the **Affine**-scaling pattern in **§ Resampling**). Save **`Tiff_1_half.tif`** and print **before vs after** width and height.
+
+7. **Optional clip** — Use **`rasterio.mask.mask`** with the **inline GeoJSON** box from **§ Clip a raster** (or your own polygon in **WGS 84** that intersects the raster). Save **`Tiff_1_clipped_lab.tif`**.
+
+8. **Visual check** — Upload **`Tiff_1.tif`** (or your merged output) to the **[Pozyx Online GeoTIFF Viewer](https://www.pozyx.io/free-tools/online-geotiff-viewer)** or open in **QGIS**. Note one thing you see that **`imshow`** alone did not emphasize (e.g. basemap context, legend, scale).
+
+Submit your **output GeoTIFFs** (or paths in a shared drive), your **`.py` or `.ipynb`**, and short answers for any “explain” prompts your instructor assigns.
+
+---
+
+# Advance Analytics
+
+The sections below use a **longer teaching workflow** (environment setup through practice problems). If you have not worked through the **Basics assignment** yet, consider doing that first so **`rasterio`**, **`numpy`**, and **matplotlib** patterns are fresh.
 
 ## Setting Up the Environment
 

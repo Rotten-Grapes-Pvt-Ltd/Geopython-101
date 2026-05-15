@@ -1,0 +1,61 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {"name": "region_north"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [75.70190002567679, 21.72372690573995],
+            [75.70190002567679, 20.241430489641303],
+            [78.05657866688904, 20.241430489641303],
+            [78.05657866688904, 21.72372690573995],
+            [75.70190002567679, 21.72372690573995]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {"name": "region_south"},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [77.30739303922036, 20.93443718935589],
+            [77.30739303922036, 18.778554619422025],
+            [80.17952030424942, 18.778554619422025],
+            [80.17952030424942, 20.93443718935589],
+            [77.30739303922036, 20.93443718935589]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {"name": "site_1"},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [79.03740972004755, 22.178636725204527]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {"name": "site_2"},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [79.55494947888741, 23.199065028047414]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {"name": "site_3"},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [80.7856252663941, 22.58277453021138]
+      }
+    }
+  ]
+}

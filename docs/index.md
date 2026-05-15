@@ -2,240 +2,181 @@
 icon: material/home
 ---
 
-# GeoPython 101: 4-Hour Workshop
+# GeoPython
 
-Welcome to **GeoPython 101** - a comprehensive introduction to Python for geospatial analysis and visualization! This workshop is designed for absolute beginners to Python with mixed GIS backgrounds.
+Welcome to **GeoPython**—a **self-paced** introduction to **Python for geospatial analysis and visualization**. The material is written for learners who are new or returning to Python and want a clear path from syntax to **vector and raster workflows** in common open-source libraries.
 
-## 🎯 Workshop Overview
+## Course map
 
-This hands-on workshop will take you from Python basics to building interactive geospatial web applications in just 4 hours. You'll work with real-world datasets and create practical solutions using modern Python tools.
+The six modules build in order: core Python, how geographic data is represented, vector analysis, raster analysis, visualization, then follow-on topics and resources.
 
 ```mermaid
 graph LR
-    A[Python Basics<br/>45 min] --> B[GIS Fundamentals<br/>15 min]
-    B --> C[Vector Analysis<br/>60 min]
-    C --> D[Raster Analysis<br/>55 min]
-    D --> E[Visualization & Web Apps<br/>55 min]
-    E --> F[Next Steps<br/>10 min]
+    A[Module 1<br/>Python basics] --> B[Module 2<br/>GIS fundamentals]
+    B --> C[Module 3<br/>Vector analysis]
+    C --> D[Module 4<br/>Raster analysis]
+    D --> E[Module 5<br/>Visualization]
+    E --> F[Module 6<br/>Next steps]
 ```
 
-!!! info "Want More? Self-Paced Course Available!"
-    Looking for a deeper dive into GeoPython with additional projects, advanced topics, and personalized support? Check out our comprehensive self-paced course at [krishnaglodha.com/courses](https://krishnaglodha.com/courses/)
+!!! info "Want more depth?"
+    For a longer course, projects, and support options, see [krishnaglodha.com/courses](https://krishnaglodha.com/courses/).
+## What is GIS?
 
-## 📚 Workshop Modules
+GIS (Geographic Information System) is a computer-based system used to collect, store, manage, analyze, and visualize geographic or location-based data. It allows users to map real-world features, study patterns, and understand relationships between different data layers, helping in planning, decision-making, resource management, and solving real-world problems efficiently.
+
+## You already use “GIS”—you just don’t call it that yet
+
+When you **search for a place** on **Google Maps**, ask for **directions**, or tap **Nearby** (cafés, fuel, ATMs), your phone is doing **geospatial work**: it combines **where you are**, **where targets are**, **roads or paths**, and **rules** (shortest time, avoid tolls, open now).
+
+
+### Everyday maps (examples)
+
+Route planning, local search, and “what’s near me?” are the same family of questions as many GIS workflows—here are a few familiar screenshots (your apps may look slightly different). **Click an image** to open it **full screen** (this works for **most figures across the site**); click the dark backdrop or **×**, or press **Escape**, to close.
+
+### 1. Route Search in Google Maps
+
+When you search for a route on Google Maps, for example from Nashik to Mumbai, it displays the best possible path. Do you know how this routing system works behind the scenes?
+
+<a href="assets/nsk_to_mum.png" class="js-lightbox-trigger"><img src="assets/nsk_to_mum.png" alt="Driving directions between two cities (example: Nashik to Mumbai)" loading="lazy" decoding="async" /></a>
+
+### 2. Hotel Search
+
+When you search for hotels, such as “hotels in Nashik,” Google Maps shows a list of nearby hotels. Do you know how it identifies and ranks these results?
+
+<a href="assets/hotesl_nashik.png" class="js-lightbox-trigger"><img src="assets/hotesl_nashik.png" alt="Hotel and place search around a city (example: Nashik area)" loading="lazy" decoding="async" /></a>
+
+### 3. Nearby Place Search (Distance-based)
+
+When you search for places within a specific distance, such as 1 km or 10 km, the system returns nearby results. Do you know how it calculates and filters locations based on distance?
+
+<a href="assets/nearest_colleges.png" class="js-lightbox-trigger"><img src="assets/nearest_colleges.png" alt="Nearest colleges or schools from a location (proximity search)" loading="lazy" decoding="async" /></a>
+
+## Modules
 
 ### [Module 1: Python Basics](01_python_basics.md)
-- Variables, data types, and basic operations
-- Lists, dictionaries, and control structures
-- Functions and code organization
-- Working with pandas for data analysis
-- **Practice**: City population analysis
+
+- **Programming**, **RAM vs databases** (volatile memory, disk persistence, diagram), and **Python** in context
+- Variables, types, **strings**, and collections (lists, tuples, sets, dictionaries)
+- **Conditionals**, **`for` / `while`**, functions, and **imports**
+- **Text files**: paths, UTF-8, `with open`, **`pathlib`**
+- **NumPy**: `ndarray`, vectorized math
+- **pandas**: `DataFrame` / `Series`, create, access, filter, add/edit/drop, missing values, CSV I/O
+- **Practice problems** with collapsible solutions (cities, weather, countries, files, pandas)
 
 ### [Module 2: GIS Fundamentals](02_gis_fundamentals.md)
-- Vector vs Raster data concepts
-- Coordinate Reference Systems (CRS)
-- Loading and inspecting geospatial data
-- Basic visualization techniques
-- **Practice**: Exploring Natural Earth datasets
+
+- What **GIS** does: locations + attributes; **vector vs raster** and typical uses
+- **Vector**: point, line, polygon (with sample **GeoJSON**); **raster** variants (continuous, categorical, multi-band) and **TIFF / GeoTIFF** (figures under **`docs/assets/`**)
+- **CRS**: geographic vs projected, **EPSG**, datum in brief, **reproject vs assign**, common mistakes, and **CRS figures** in the chapter
+- Open and **inspect** vector layers and relate **wrong-CRS** choices to the map examples (**Natural Earth**-style paths where used)
 
 ### [Module 3: Vector Data & Analysis](03_vector_analysis.md)
-- GeoPandas and GeoDataFrames
-- Spatial operations (buffers, intersections, joins)
-- Attribute and spatial filtering
-- Coordinate transformations
-- **Practice**: European country analysis, spatial relationships
+
+- **Vector** formats, **multipart** geometries, **Shapely** (buffer, union, intersection, predicates)
+- **GeoPandas**: `GeoDataFrame`, **`geometry`** column, CRS on the table, read–filter–reproject–export
+- **Basics assignment** path: **geojson.io**, Shapely + small GeoPandas tasks before advanced topics
+- **Spatial joins**, **overlays**, creating new geometries, exports, and **practice problems**
 
 ### [Module 4: Raster Data & Analysis](04_raster_analysis.md)
-- Understanding raster structure and properties
-- Raster calculations and statistics
-- Clipping with vector boundaries
-- Handling NoData values
-- **Practice**: Elevation analysis, multi-criteria suitability
 
-### [Module 5: Visualization & Web Apps](05_visualization.md)
-- Static maps with matplotlib
-- Interactive maps with Folium
-- Building dashboards with leafmap
-- User interface design
-- **Practice**: Population dashboard, city explorer
+- Raster as a **grid** (resolution, extent, **CRS**, **NoData**, bands, dtypes)
+- **`rasterio`** recipes and workflows: read/inspect, stats, mask/clip, merge, **resampling**; bundled **`Tiff_1.tif`** / **`Tiff_2.tif`** in **`docs/assets/tiff/`**
+- Raster–vector integration, **NoData** handling, a **basics assignment** on bundled GeoTIFFs (before **Advance Analytics**), and **practice** (elevation-style and multi-criteria examples)
+
+### [Module 5: Visualization with Matplotlib & Leafmap](05_visualization.md)
+
+- **Matplotlib**: figures/axes, **`GeoDataFrame.plot`**, and **raster** plots with **`rasterio`** (display, colormap, histogram, NoData masking, window/crop, overlays, subplots); **`pip install`** **matplotlib**, **numpy**, **rasterio**
+- **Leafmap**: interactive maps—create map, **basemaps**, **markers**, **GeoJSON**, **`to_html`** export; **`pip install leafmap`** and optional **`localtileserver`**; example screenshots in **`docs/assets/`**
+- Further sections: **GeoPandas** layer stacks and choropleths, **popups**, **export/print**, and optional **ipyleaflet** for deeper widget control
 
 ### [Module 6: Next Steps & Learning Path](06_next_steps.md)
-- Advanced Python and geospatial topics
-- Career paths in geospatial Python
-- Project ideas and resources
-- Building your portfolio
 
-## 🛠️ Prerequisites
+- Recap of skills, **portfolio** and project ideas
+- Intermediate Python, cloud GIS, databases, and **Streamlit**-style directions
+- Pointers to advanced topics (ML, big data, DevOps) and curated resources—without repeating the six core modules
 
-- **No Python experience required** - we start from the basics!
-- Basic computer literacy
-- Familiarity with maps and geographic concepts (helpful but not required)
-- **Environment**: Google Colab or Jupyter notebooks (no local installation needed)
+## Prerequisites
 
-## 📊 Datasets Used
+- **Python**: no prior experience required for Module 1; later modules assume you can run notebooks or scripts.
+- **GIS**: basic map literacy helps (coordinates, layers); CRS ideas are taught in Module 2.
+- **Environment**: **Jupyter**, **VS Code**, or **Google Colab** are all fine—use whichever matches how you run the code cells in each file.
 
-All examples use **[Natural Earth](https://www.naturalearthdata.com/downloads/)** datasets that are freely available and included with GeoPandas:
+## Data and materials in this repository
 
-- World countries boundaries
-- Major cities and populated places
-- Physical and cultural features
+- **Bundled examples** under **`docs/assets/`**: sample **GeoJSON** (including **`assets/examples/`**), diagrams, map screenshots, and packaged outputs used in the vector, raster, and visualization chapters.
+- **Sample GeoTIFFs** **`Tiff_1.tif`** and **`Tiff_2.tif`** in **`docs/assets/tiff/`** for raster and visualization exercises (download buttons also appear in the raster module).
+- **Natural Earth** and similar teaching layers appear in several chapters; download links and paths are given inside each module where they apply.
+- **geojson.io** is referenced explicitly in the **vector basics assignment** for drawing and exporting GeoJSON.
 
-## 🎨 What You'll Build
+## What you can build
 
-By the end of this workshop, you'll have created:
+!!! success "Typical outcomes from the modules"
+    - Small **Python scripts and notebooks** that load, clean, and summarize tables (**pandas**) and arrays (**NumPy**)
+    - **Vector workflows** with **GeoPandas** and **Shapely** (read, filter, reproject, spatial join, export)
+    - **Raster workflows** with **rasterio** (read, compute, clip, respect NoData)
+    - **Static** maps and **raster figures** (**matplotlib** + **rasterio**) and **interactive** maps (**Leafmap**), suitable as starting points for a portfolio README or report figures
 
-!!! success "Workshop Deliverables"
-    - **Interactive world map** with population data
-    - **Spatial analysis tools** for buffer and intersection operations
-    - **Raster analysis workflow** for elevation and terrain data
-    - **Web dashboard** with user controls and visualizations
-    - **Complete project portfolio** ready for GitHub
-
-## 🚀 Key Technologies
+## Core stack (mind map)
 
 ```mermaid
 mindmap
-  root((GeoPython Stack))
-    Core Python
-      pandas
-      numpy
-      matplotlib
-    Geospatial
+  root((GeoPython stack))
+    Python core
+      Control flow and functions
+      Files pathlib UTF-8
+    Tables and arrays
+      pandas DataFrames
+      NumPy ndarrays
+    Vector GIS
       GeoPandas
-      Rasterio
       Shapely
-      Folium
-    Web Apps
-      Streamlit
-      Plotly
-      HTML/CSS
-    Data Sources
-      Natural Earth
-      OpenStreetMap
-      Satellite Data
+    Raster GIS
+      rasterio
+    Visualization
+      matplotlib
+      Leafmap
+    Data
+      Repo assets GeoJSON
+      Natural Earth teaching layers
 ```
 
-## 💡 Learning Approach
+## How to use this site
 
-This workshop follows a **hands-on, project-based approach**:
+1. Open **[Module 1: Python Basics](01_python_basics.md)** and run examples in order.
+2. Use the **Learning Goals** at the top of each module as a checklist.
+3. Try **practice** sections before expanding the solutions.
+4. Keep a single folder or repo for your own copies of scripts, outputs, and maps.
 
-1. **Learn by Doing**: Every concept is immediately applied to real data
-2. **Progressive Complexity**: Start simple, build up to advanced topics
-3. **Real-World Examples**: Use actual geospatial datasets and scenarios
-4. **Interactive Elements**: Build maps and apps you can interact with
-5. **Best Practices**: Learn proper coding and documentation habits
+## Learning outcomes
 
-## 🎯 Learning Outcomes
+After working through the modules, you should be able to:
 
-After completing this workshop, you will be able to:
+!!! check "Technical skills"
+    - Read and write short Python programs using collections, loops, functions, files, **NumPy**, and **pandas**
+    - Explain **vector vs raster**, common **file formats**, and **CRS** metadata at a practical level
+    - Use **GeoPandas** and **Shapely** for common vector operations and exports
+    - Use **rasterio** for read/compute/clip patterns and **NoData** awareness
+    - Produce **static** maps and **raster plots** with **matplotlib** (and **rasterio** where used) and **interactive** maps with **Leafmap**
 
-!!! check "Technical Skills"
-    - Write Python code for data analysis and visualization
-    - Load, manipulate, and analyze geospatial data
-    - Create both static and interactive maps
-    - Build web applications for geospatial analysis
-    - Handle coordinate reference systems and projections
-    - Perform spatial operations and calculations
+!!! check "Practical habits"
+    - Inspect **CRS** and **dtypes** before analysis
+    - Prefer **vectorized** and library-native operations over ad hoc loops where possible
+    - Reproducible paths (`pathlib`), UTF-8 text, and clear column names in tables
 
-!!! check "Practical Applications"
-    - Analyze population and demographic data
-    - Create buffer zones and spatial relationships
-    - Process elevation and terrain data
-    - Build interactive dashboards
-    - Share results through web applications
+## Documentation conventions
 
-!!! check "Professional Development"
-    - Understand geospatial Python ecosystem
-    - Know where to find help and resources
-    - Have a portfolio of projects to showcase
-    - Be prepared for intermediate and advanced topics
+- **Mermaid** figures for flows and stacks
+- **Runnable code** in fenced blocks; longer modules also use **practice** and **solution** patterns
+- **Admonitions** (`tip`, `warning`, `success`) for habits and pitfalls
 
-## 🌟 Workshop Features
+## Get started
 
-### 📝 Comprehensive Documentation
-Each module includes:
-
-- Clear explanations with diagrams
-- Complete code examples with comments
-- Practice problems with solutions
-- Tips, tricks, and best practices
-- Troubleshooting guides
-
-### 🎮 Interactive Elements
-- **Mermaid diagrams** for visual learning
-- **Code blocks** with syntax highlighting
-- **Collapsible solutions** for practice problems
-- **Progress tracking** through modules
-
-### 🔧 Practical Focus
-- **Real datasets** from Natural Earth
-- **Complete workflows** from data to visualization
-- **Production-ready code** with error handling
-- **Deployment examples** for sharing your work
-
-## 🚦 Getting Started
-
-Ready to begin your GeoPython journey? Here's how to start:
-
-1. **Choose your environment**:
-   
-   - [Google Colab](https://colab.research.google.com/) (recommended for beginners)
-   - [Jupyter notebooks](https://jupyter.org/) (if you have Python installed)
-   - Local Python environment (for advanced users)
-
-2. **Start with Module 1**: [Python Basics](01_python_basics.md)
-
-3. **Follow along**: Copy and run all code examples
-
-4. **Complete practice problems**: Test your understanding
-
-5. **Build your portfolio**: Save your work for future reference
-
-## 🤝 Community & Support
-
-### Getting Help
-
-- **Documentation**: Each module has detailed explanations
-- **Practice Solutions**: All problems include complete solutions
-- **Error Handling**: Common issues and fixes are covered
-- **External Resources**: Links to official documentation
-
-### Sharing Your Work
-
-- **GitHub**: Create repositories for your projects
-- **Social Media**: Share your maps and visualizations
-- **Blog Posts**: Write about your learning journey
-- **Community Forums**: Help other learners
-
-## 📈 After the Workshop
-
-This workshop is just the beginning! Here's what comes next:
-
-### Immediate Next Steps
-
-1. **Complete a personal project** using the skills learned
-2. **Explore additional datasets** beyond Natural Earth
-3. **Join geospatial Python communities** online
-4. **Practice regularly** with small coding exercises
-
-### Long-term Development
-
-- **Advanced Topics**: Machine learning, big data processing
-- **Specialization**: Remote sensing, urban planning, environmental analysis
-- **Career Development**: GIS analyst, data scientist, web developer
-- **Contribution**: Open source projects, teaching others
-
-## 🎉 Let's Begin!
-
-You're about to embark on an exciting journey into the world of geospatial Python programming. Whether you're looking to advance your career, solve real-world problems, or simply explore the intersection of geography and technology, this workshop will give you the foundation you need.
-
-**Ready to start mapping with Python?**
-
-[Begin with Module 1: Python Basics →](01_python_basics.md){ .md-button .md-button--primary }
+[Open Module 1: Python Basics](01_python_basics.md){ .md-button .md-button--primary }
 
 ---
 
-!!! quote "Workshop Philosophy"
-    *"The best way to learn programming is by solving real problems with real data. Every line of code in this workshop serves a purpose, and every concept builds toward creating something meaningful."*
+!!! quote "Course philosophy"
+    *Each module ties syntax to geographic questions: tables and coordinates are not abstract exercises—they are the same objects you will use in GeoPandas, rasterio, and maps.*
 
-**Happy coding, and welcome to the GeoPython community!** 🌍🐍✨
+**Happy mapping with Python.**

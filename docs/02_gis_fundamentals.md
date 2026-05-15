@@ -5,15 +5,18 @@ icon: material/earth
 # Module 2: GIS Fundamentals
 
 ## Learning Goals
-- Understand the difference between vector and raster data
-- Learn about basic geometry types (Point, Line, Polygon)
-- Understand attribute tables and their relationship to geometries
-- Grasp the importance of Coordinate Reference Systems (CRS)
-- See what happens when CRS is wrong
+
+- State what **GIS** does: combine **locations** (spatial data) with **properties** (attributes) to map, query, and decide
+- Compare **vector** and **raster** models and name one **typical use** for each in real projects
+- Outline **raster** variants (continuous, categorical, multi-band) and how **TIFF / GeoTIFF** tie **pixels**, **tags**, and **CRS** together
+- Relate **point, line, and polygon** (with sample **GeoJSON**) to **features** and their **attribute tables**
+- Read **CRS** metadata at a practical level: **geographic vs projected**, **EPSG** codes, **datum** in brief, **reprojection vs assigning**, and the **figures** that illustrate globe vs map plane
+- List common **CRS mistakes** (missing, mis-tagged, mixed systems) and why maps then look **wrong or misaligned**
+- Open and **inspect** vector layers (schema, geometry types, CRS) and relate **bad CRS** choices to the **visualization** examples in this module
 
 ## What is GIS?
 
-**Geographic Information Systems (GIS)** combine spatial data with attribute data to help us understand patterns, relationships, and trends in our world.
+**GIS (Geographic Information System)** is a computer-based system used to collect, store, manage, analyze, and visualize geographic or location-based data. It allows users to map real-world features, study patterns, and understand relationships between different data layers, helping in planning, decision-making, resource management, and solving real-world problems efficiently.
 
 ```mermaid
 graph TD
@@ -25,126 +28,146 @@ graph TD
     E --> G[Names, Values, Properties]
 ```
 
-## Vector vs Raster Data
 
-Geographic data comes in two main formats:
 
-```mermaid
-graph LR
-    A[Geographic Data] --> B[Vector Data]
-    A --> C[Raster Data]
-    B --> D[Points, Lines, Polygons]
-    C --> E[Grid of Pixels/Cells]
-    D --> F[Cities, Roads, Countries]
-    E --> G[Elevation, Temperature, Satellite Images]
-```
+## Vector Data in GIS
+**Vector data in GIS** represents geographic features using **points, lines, and polygons**. It stores precise coordinates to define locations, shapes, and boundaries, along with attribute data (like name or type), making it ideal for mapping discrete features such as cities, roads, and parcels.
 
-### Vector Data
-- **Discrete objects** with defined boundaries
-- Made up of **points, lines, and polygons**
-- Each feature has **attributes** (properties)
-- Examples: cities, roads, country boundaries, building footprints
+### Vector Geometry Types
 
-### Raster Data
-- **Continuous surface** divided into a grid
-- Each cell has a **value**
-- Examples: elevation, temperature, satellite imagery, population density
+The three core **vector** geometries are **point** (one location), **line** (ordered vertices along a path), and **polygon** (a closed ring—or rings with holes—that encloses an area).
 
-## Vector Geometry Types
+### Point vs line vs polygon (comparison)
 
-### Setting Up
+| | **Point** | **Line** (`LineString`) | **Polygon** |
+|---|-----------|-------------------------|-------------|
+| **What it represents** | One location | A path along a route | A bounded area (and optional holes) |
+| **Vertices** | 1 coordinate pair | 2 or more, in order | 1+ closed rings; outer ring first, then holes |
+| **Typical measures** | Position only; no length or area | Length along the path | Perimeter length and interior area |
+| **GeoJSON `type`** | `Point` | `LineString` | `Polygon` |
+| **Shapely class** | `Point` | `LineString` | `Polygon` |
+| **Examples** | Towers, sensors, addresses | Roads, rivers, tracks | Countries, parcels, lakes |
 
-```python
-from shapely.geometry import Point, LineString, Polygon
-import matplotlib.pyplot as plt
-```
+**Rule of thumb:** use a **point** when “where” is a single spot; a **line** when connectivity or route matters; a **polygon** when you need an **inside** vs **outside** (area).
 
 ### Points
-- **Single coordinate pair** (x, y)
-- Represent discrete locations
-- Examples: cities, weather stations, GPS locations
 
-```python
-# Create a Point
-p = Point(2, 3)
+![Point geometry: a single location in coordinate space](assets/points.png)
 
-x, y = p.xy
-plt.plot(x, y, 'ro')
-plt.title("Point")
-plt.grid()
-plt.show()
+- **Single coordinate pair** `(x, y)` — in geographic data usually **(longitude, latitude)** in that order (GeoJSON / WGS84).
+- **Zero-length** object: no area, no length; only position.
+- Examples: cities, weather stations, GPS fixes, sampling sites.
+
+**Example GeoJSON** (one `Point` feature with properties):
+
+```json
+{
+  "type": "Feature",
+  "properties": {
+    "name": "Trailhead Kiosk",
+    "amenity": "information"
+  },
+  "geometry": {
+    "type": "Point",
+    "coordinates": [-122.4194, 37.7749]
+  }
+}
 ```
 
 ### Lines (LineStrings)
-- **Series of connected points**
-- Represent linear features
-- Examples: roads, rivers, flight paths
 
-```python
-# Create a LineString
-line = LineString([(1, 1), (4, 2), (6, 5)])
+![Line geometry: vertices connected in order along a path](assets/lines.png)
 
-x, y = line.xy
-plt.plot(x, y, 'b-')
-plt.title("LineString")
-plt.grid()
-plt.show()
+- **Ordered sequence** of vertices; the line **connects them in order** (no branching in a single `LineString`).
+- Has **length**, no area.
+- Examples: roads, rivers, trails, ship tracks.
+
+**Example GeoJSON** (`LineString` with four vertices):
+
+```json
+{
+  "type": "Feature",
+  "properties": {
+    "name": "Ridge Trail segment",
+    "surface": "unpaved"
+  },
+  "geometry": {
+    "type": "LineString",
+    "coordinates": [
+      [-122.422, 37.773],
+      [-122.418, 37.775],
+      [-122.415, 37.7765],
+      [-122.412, 37.778]
+    ]
+  }
+}
 ```
 
 ### Polygons
-- **Closed series of lines** forming a shape
-- Represent areas with boundaries
-- Examples: countries, lakes, building footprints
 
-```python
-# Create a Polygon
-poly = Polygon([(2, 1), (6, 1), (7, 4), (4, 6), (2, 4)])
+![Polygon geometry: a closed ring defining an interior area](assets/polygon.png)
 
-x, y = poly.exterior.xy
-plt.fill(x, y, alpha=0.5, color='green')
-plt.title("Polygon")
-plt.grid()
-plt.show()
+- **Exterior ring** is closed (first point equals last in valid data); **interior rings** (holes) are optional.
+- Has **area** and **perimeter** (boundary length).
+- Examples: countries, parcels, lakes, study regions.
+
+**Example GeoJSON** (`Polygon`: outer ring only; note the repeated closing coordinate):
+
+```json
+{
+  "type": "Feature",
+  "properties": {
+    "name": "Study area boundary",
+    "zone_code": "A-12"
+  },
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [-122.425, 37.772],
+        [-122.408, 37.772],
+        [-122.408, 37.781],
+        [-122.425, 37.781],
+        [-122.425, 37.772]
+      ]
+    ]
+  }
+}
 ```
 
-## Attribute Tables
+## Raster data in GIS
 
-Every geographic feature has **attributes** - descriptive information about that feature:
+**Vector** data stores **objects** (points, lines, polygons) with coordinates and attributes. **Raster** data stores values on a **regular grid** of **pixels** (also called **cells**): each cell has a row/column index and usually **one or more numeric values** (bands). The grid is anchored in map space by **origin**, **cell size** (resolution), **extent**, and **CRS**—you will tie those ideas to CRS metadata in the next section.
 
-```python
-# Example: City features with attributes
-city_features = [
-    {
-        "geometry": {"type": "Point", "coordinates": [-122.4194, 37.7749]},
-        "properties": {
-            "name": "San Francisco",
-            "population": 884000,
-            "country": "USA",
-            "founded": 1776,
-            "is_capital": False
-        }
-    },
-    {
-        "geometry": {"type": "Point", "coordinates": [-74.0060, 40.7128]},
-        "properties": {
-            "name": "New York",
-            "population": 8400000,
-            "country": "USA",
-            "founded": 1624,
-            "is_capital": False
-        }
-    }
-]
-```
+### How a raster differs from vector
 
-!!! info "Geometry + Attributes = Geographic Feature"
-    - **Geometry**: WHERE the feature is located
-    - **Attributes**: WHAT the feature is and its properties
-    - Together they create meaningful geographic information
+| | **Vector** | **Raster** |
+|---|------------|------------|
+| **Geometry** | Exact vertices and edges | Uniform rectangles (pixels) |
+| **Best for** | Boundaries, networks, discrete features | Continuous fields, imagery, scanned maps |
+| **Storage** | Often smaller for sparse features | Can be large at fine resolution |
+
+
+### TIFF
+
+**TIFF** (Tagged Image File Format) is a flexible **image and raster container**: “tags” in the file header describe **image width and height**, **bits per sample**, **number of bands**, **compression** (often none or LZW/deflate for GIS), and optional **color maps**. TIFF is widely used because it supports **large files**, **lossless** storage, and **many bands**—ideal for elevation models and satellite tiles.
+
+When those tags include **georeferencing** (CRS, pixel size, origin), the file is usually called **GeoTIFF**. For a **quick browser preview** of a GeoTIFF you generated or downloaded, you can use tools such as the **[Pozyx Online GeoTIFF Viewer](https://www.pozyx.io/free-tools/online-geotiff-viewer)**; Module 4 discusses limits and when to switch to **QGIS** or **Python**.
+
+![TIFF as a structured file: tags describe the raster layout on disk](assets/tiff_file.png)
+Pixels in a TIFF file are small grid cells, each storing a value representing color, intensity, or geographic data information.
+
+
+![Pixels on a grid: each cell holds one or more band values](assets/tiff_pixel.png)
+
+!!! tip "Raster vocabulary"
+    - **Resolution** — ground distance covered by one pixel edge (e.g. 10 m pixels).
+    - **Extent / bounding box** — outer limits of the raster in map coordinates.
+    - **NoData** — a sentinel value meaning “no observation here” (important for masks and mosaics).
 
 ## Coordinate Reference Systems (CRS)
 
-A **Coordinate Reference System** defines how coordinates relate to real locations on Earth.
+A **CRS** is the metadata that tells software **how to interpret coordinate numbers** (axes, units, Earth model, and—if projected—which **map projection**). Without it, values like **−122.4194, 37.7749** are ambiguous (degrees vs meters, which origin). Layers and rasters carry CRS in their metadata (often an **EPSG** code) so every vertex or pixel lines up correctly on the map.
 
 ```mermaid
 graph TD
@@ -157,32 +180,72 @@ graph TD
     F --> H[Web Mercator - Web maps]
     F --> I[UTM - Local accuracy]
 ```
+### Geographic CRS
+A Geographic Coordinate Reference System uses the Earth as a sphere (or ellipsoid).
 
-### Why CRS Matters
+Uses Latitude (lat) and Longitude (long)
+Units are in degrees (°)
+Example:
+👉 (19.0760°, 72.8777°)
+![Geographic CRS: angles on the globe—longitude and latitude relative to the equator and prime meridian](assets/geographic_crs.jfif)
+### Projected CRS
+A Projected Coordinate Reference System converts Earth into a flat map.
 
-```python
-import geopandas as gpd
-import matplotlib.pyplot as plt
+Uses X, Y coordinates
+Units are in meters or feet
+Example:
+👉 (500000, 2100000)
+![From 3D Earth to 2D map: projection picks how the sphere is flattened; that choice is part of a projected CRS](assets/project_crs_map.jfif)
+![Projected CRS: the curved Earth opened onto flat maps—different projections change shape and distance](assets/projected_crs_maps.jfif)
 
-# Load Natural Earth countries data
-world = gpd.read_file(gpd.datasets.get_path('naturalearth_lowres'))
+### Geographic vs projected
 
-# Check the current CRS
-print(f"Current CRS: {world.crs}")
-# Output: EPSG:4326 (WGS84 - latitude/longitude)
+| | **Geographic CRS** | **Projected CRS** |
+|---|-------------------|-------------------|
+| **Coordinates** | Usually **longitude** and **latitude** in **degrees** | **Easting** / **northing** (or x/y) in **meters** (or feet) |
+| **Earth shape** | Angles on a **reference ellipsoid** | A **flat map plane** |
+| **Examples** | WGS 84 — **EPSG:4326** | Web Mercator — **EPSG:3857**; UTM — e.g. **EPSG:32610** |
+| **Typical use** | GPS, GeoJSON, global exchange | Web basemaps, local distance/area in meters |
 
-# Display basic information
-print(f"Number of countries: {len(world)}")
-print(f"Columns: {list(world.columns)}")
-```
+Lon/lat are simply the usual **geographic** coordinate form; in a **projected** CRS the **same place** has **different numbers** (large eastings/northings) until you **transform** back.
+
+
+### Datum and EPSG (short)
+
+A **datum** ties your ellipsoid and origin to real surveys; changing datum can shift coordinates by **meters**. **EPSG** codes (registry maintained by **IOGP**) are shorthand for a full CRS definition—**`EPSG:4326`**, **`3857`**, **`32610`**, etc.—so GIS apps and libraries agree on **one** interpretation.
+
+### Reprojection vs assigning CRS
+
+**Reprojection** = transform geometry from **CRS A** to **CRS B**; the **location stays the same**, the **numbers change**. **Assigning** a CRS = “these numbers **already mean** this system”—it does **not** recalculate coordinates. Mixing the two (or mis-tagging degrees as meters) corrupts maps.
+
+Same point near **San Francisco** in different CRS (your software reproduces the values):
+
+| CRS | EPSG | First coordinate | Second coordinate |
+|-----|------|------------------|-------------------|
+| WGS 84 (geographic) | **4326** | −122.4194° (lon) | 37.7749° (lat) |
+| Pseudo-Mercator | **3857** | −13,627,665 m (easting) | 4,547,675 m (northing) |
+| UTM zone 10N | **32610** | 551,131 m (easting) | 4,180,999 m (northing) |
+
+Do **not** paste lon/lat into a layer declared as a **meter** CRS without a proper transform.
+
+### Typical problems (checklist)
+
+- **No CRS** — software guesses or leaves the layer “unknown”; vectors/rasters fail to align with trusted data.
+- **Wrong tag** — degrees labeled as **3857** (plots near null island); meters labeled as **4326** (stretched nonsense).
+- **Mixed CRS** — overlay, buffer, join, and area need **one** common CRS (reproject first).
+- **Wrong tool for measure** — distance/area in **4326** are in **degrees / degree²**; use a **local projected** CRS for meters/hectares when needed.
+
+!!! tip "CRS workflow"
+    - Record what CRS the coordinates **actually** use; **assign** metadata only when that is true.
+    - **Reproject** when you need a **different CRS** for analysis or display; align all layers before **spatial join** or **merge**.
 
 ### Common Coordinate Reference Systems
 
 | CRS | EPSG Code | Description | Use Case |
 |-----|-----------|-------------|----------|
-| **WGS84** | 4326 | Latitude/Longitude | GPS, global data |
-| **Web Mercator** | 3857 | Web mapping | Google Maps, web apps |
-| **UTM** | Various | Local projections | Accurate measurements |
+| **WGS 84** | 4326 | Geographic lon/lat on WGS 84 | GPS, GeoJSON, interchange |
+| **Web Mercator** | 3857 | x/y meters (web tiling) | Basemaps, slippy maps |
+| **UTM** | Zone codes (e.g. 32610) | Metric bands | Local mapping, engineering |
 
 ## Loading and Inspecting Vector Data
 
@@ -484,7 +547,7 @@ mindmap
     - **Vector vs Raster**: Two fundamental data types in GIS
     - **Geometry Types**: Points, lines, and polygons represent different features
     - **Attributes**: Descriptive data linked to geographic features
-    - **CRS Importance**: Critical for accurate analysis and visualization
+    - **CRS**: Datum + units; geographic (lon/lat in degrees) vs projected (meters); same place → different numbers after `to_crs()`
     - **Data Inspection**: How to explore and understand geographic datasets
 
 !!! tip "Best Practices"

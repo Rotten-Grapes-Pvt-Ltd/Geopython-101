@@ -5,19 +5,45 @@ icon: material/language-python
 # Module 1: Python Basics
 
 ## Learning Goals
-- Understand what Python is and where it's used
-- Work with variables and basic data types
-- Use lists and dictionaries effectively
-- Write and use for-loops
-- Create simple functions
+
+This module builds a foundation in Python syntax and core data structures so you can read scripts and write small programs confidently. The outcomes below are the skills you should recognize and practice before moving on to geospatial libraries. Use the code examples and exercises to connect each bullet to working code.
+
+- Relate **programming** (instructions, source code, running programs) to **Python** and typical **use cases**
+- Contrast **program RAM** (volatile objects, garbage collection) with **database** storage on **disk** and how data moves between them
+- Work with variables and basic data types (`int`, `float`, `str`, `bool`)
+- Use lists, tuples, sets, and dictionaries effectively
+- Branch with conditionals (`if`, `elif`, `else`)
+- Write and use `for` and `while` loops
+- Create simple functions with arguments and return values
 - Import and use libraries
-- Read data with pandas
+- Read and write text files safely (paths, encoding, `with open`, `pathlib`)
+- Use NumPy arrays for numeric vectors and grids
+- Read and shape tabular data with pandas
+
+## What is programming?
+
+**Programming** is the act of writing **precise instructions** that a computer can follow. Those instructions are expressed in a **programming language** as **source code** (text files with rules about spelling and structure called **syntax**). A tool called an **interpreter** or **compiler** turns that code into actions: reading data, calculating, showing output, talking to files or the network, and so on.
+
+A **program** bundles many instructions into something you can **run** again and again with different inputs. Good programs are **clear**, **correct**, and **maintainable**—which is why we use readable languages, comments, and small reusable pieces (such as **functions**, which you will see later in this module).
+
+Programming is not tied to one domain: the same ideas apply to websites, games, automation, and **geospatial analysis**. **Python** is one widely used language for all of these; the rest of this module teaches **Python’s** building blocks so you can read and write geospatial scripts with confidence.
+
+### Memory in programming
+
+**Memory** usually means **RAM** (random access memory)—fast, **volatile** storage: when your program stops or the machine powers off, what was only in RAM is **gone** unless you saved it somewhere persistent. While Python runs, it keeps **your objects** here: numbers, strings, lists.
+
+When you write **`population = 8_400_000`**, Python **allocates** a piece of RAM for that integer and binds the name **`population`** to it. Names are like **labels**; several variables can refer to the same object, and when nothing refers to an object anymore, Python’s **garbage collector** can **reclaim** that RAM for other use—this automatic **memory management** is why you rarely `free()` by hand as in some lower-level languages.
+
+![Python memory (conceptual): objects live in the process heap, names refer to objects, and unreferenced objects can be collected](assets/python_memory.jfif)
+
 
 ## What is Python?
 
-Python is a high-level, interpreted programming language that's widely used for:
+Python is a general-purpose, high-level language designed to be readable and quick to write. Your source code is executed by an interpreter (or runtime), so you can run small snippets or full programs without a separate compilation step. A very large standard library and third-party packages make it a common choice for data analysis, automation, web services, and scientific or geospatial work.
 
-- **Data Science & Analytics** - pandas, numpy, matplotlib
+Here are some common application areas:
+
+- **Data Science & Analytics** - NumPy, pandas, matplotlib
 - **Web Development** - Django, Flask
 - **Automation & Scripting** - System administration, data processing
 - **Geospatial Analysis** - GeoPandas, Rasterio, Shapely
@@ -29,13 +55,15 @@ graph TD
     A --> C[Web Development]
     A --> D[Automation]
     A --> E[GIS & Mapping]
-    B --> F[pandas, numpy]
+    B --> F[NumPy, pandas]
     C --> G[Django, Flask]
     D --> H[Scripts, APIs]
     E --> I[GeoPandas, Folium]
 ```
 
 ## 1. Python as a Calculator
+
+You can type numeric expressions in Python and get results immediately, much like a desk calculator. Operators such as `+`, `-`, `*`, `/`, `**`, and `%` follow familiar math rules, with a few Python-specific details (for example, `/` always produces a floating-point result). This is a simple way to check syntax, explore numbers, and build toward variables and scripts.
 
 Let's start with basic arithmetic operations:
 
@@ -56,6 +84,8 @@ print(17 % 5)   # Modulo (remainder): 2
     - Use `%` to get the remainder
 
 ## 2. Variables and Data Types
+
+A **variable** is a name that refers to a value stored in memory, so you can reuse and update data without repeating literals. **Data types** describe what kind of value something is—such as whole numbers (`int`), decimals (`float`), text (`str`), or true/false (`bool`)—and they determine which operations are valid. Python figures out many types automatically, and you can inspect them with `type()`.
 
 Variables store data that can be used later:
 
@@ -82,7 +112,20 @@ print(type(city_name))    # <class 'str'>
 print(type(is_capital))   # <class 'bool'>
 ```
 
+### Core types at a glance
+
+| Type | Role | Examples |
+|------|------|----------|
+| `int` | Whole numbers | `42`, `-1`, `1_000_000` |
+| `float` | Decimal (approximate) real numbers | `3.14`, `1.0`, `2.5e3` |
+| `str` | Text (immutable sequence of characters) | `"hello"`, `'GIS'` |
+| `bool` | Logical true/false | `True`, `False` |
+
+You can **convert** between types when it makes sense: `int("10")`, `float("3.5")`, `str(99)`, `bool(0)`. For conditionals, values like `0`, `None`, `False`, `""`, and empty collections behave as **falsy**; most other values are **truthy**.
+
 ### String Operations
+
+**Strings** are sequences of characters used for names, labels, and text. You can combine them (concatenation), build messages with **f-strings**, and call **methods** like `.lower()` or `.replace()` to transform text without changing the original string in place (strings are immutable). These operations are central to cleaning labels, paths, and CSV fields in real projects.
 
 ```python
 # String concatenation and formatting
@@ -104,7 +147,11 @@ print(city.upper())      # SAN FRANCISCO
 print(city.replace(" ", "_"))  # san_francisco
 ```
 
-## 3. Lists - Ordered Collections
+## 3. Lists, Tuples, Sets, and Dictionaries (overview)
+
+### Lists — ordered, mutable
+
+A **list** is an ordered, mutable collection: items keep their sequence, and you can add, remove, or change elements by index. Lists can hold mixed types, though in data work you often keep one type per list (for example, all numbers or all strings). Indexing starts at `0`, and slicing lets you take contiguous sub-ranges efficiently.
 
 Lists store multiple items in order:
 
@@ -134,6 +181,8 @@ print(sum(populations))         # Sum of all values
 
 ### List Comprehensions (Bonus)
 
+A **list comprehension** is a compact way to build a new list by looping over another iterable, optionally filtering with `if`. It often replaces a short `for` loop plus `.append()` with a single readable expression. Comprehensions are idiomatic in Python for transforming or filtering sequences of values.
+
 ```python
 # Create new lists based on existing ones
 numbers = [1, 2, 3, 4, 5]
@@ -145,7 +194,49 @@ large_cities = [city for city in cities if len(city) > 6]
 print(large_cities)
 ```
 
+### Tuples — ordered, immutable
+
+A **tuple** is like a list that **cannot** be changed after creation (no `.append()`, no item assignment). Tuples are lightweight and hashable when their items are hashable, so they can be used as **dictionary keys** or **set members**—unlike lists.
+
+```python
+# Creating tuples (parentheses optional but readable)
+point = (12.5, 45.3, 100.0)   # often x, y, z or lon, lat, elevation
+single = (42,)                 # comma required for a one-item tuple
+from_list = tuple([1, 2, 3])
+
+# Access and unpack
+print(point[0], point[-1])
+lon, lat, z = point
+
+# Immutable: point[0] = 0 would raise TypeError
+```
+
+### Sets — unique elements, fast membership
+
+A **set** stores **unique** items and supports fast **membership** checks (`in`) and **set algebra** (union, intersection, difference). Elements must be **hashable** (for example numbers, strings, tuples of hashables—not lists).
+
+```python
+# Creating sets
+tags = {"urban", "park", "water", "urban"}  # duplicates dropped → one "urban"
+more = set(["forest", "park"])
+
+# Add / remove
+tags.add("wetland")
+tags.discard("missing")  # no error if absent
+
+# Membership and size
+print("park" in tags)
+print(len(tags))
+
+# Set operations
+print(tags | more)   # union
+print(tags & more)   # intersection
+print(tags - more)   # difference
+```
+
 ## 4. Dictionaries - Key-Value Pairs
+
+A **dictionary** maps unique **keys** to **values**, so you look up data by name (for example a city id or column-like label) instead of by position. Keys must be hashable (often strings or numbers); values can be any type, including nested dicts or lists. Dictionaries are ideal for records, configuration, and structured attributes you want to access by key.
 
 Dictionaries store data as key-value pairs:
 
@@ -183,9 +274,53 @@ cities_data = {
 print(cities_data["London"]["population"])  # 9000000
 ```
 
-## 5. For Loops - Iteration
+### Lists, Tuples, Sets, and Dictionaries (overview)
 
-For loops let you repeat code for each item in a collection:
+| Structure | Ordered? | Mutable? | Duplicate elements? | Typical use |
+|-----------|----------|----------|---------------------|-------------|
+| **List** | Yes | Yes | Allowed | Sequences you change (rows, coordinates as you build them) |
+| **Tuple** | Yes | No | Allowed | Fixed records, keys, or return bundles |
+| **Set** | No* | Yes | Unique only | Membership tests, deduplication, set math |
+| **Dictionary** | Insertion-ordered (3.7+) | Yes | Keys unique; values can repeat | Records by name, lookup tables |
+
+\*Sets do not preserve a meaningful order for iteration; do not rely on order for logic.
+
+## 5. Conditional Statements (`if`, `elif`, `else`)
+
+**Conditionals** choose which code runs based on **boolean** tests. Python uses **`if`** for the first branch, **`elif`** for extra tests, and **`else`** for the fallback. Comparison operators include `==`, `!=`, `<`, `>`, `<=`, `>=`. You can combine conditions with **`and`**, **`or`**, and **`not`**.
+
+```python
+score = 85
+
+if score >= 90:
+    grade = "A"
+elif score >= 80:
+    grade = "B"
+elif score >= 70:
+    grade = "C"
+else:
+    grade = "F"
+
+# Combining conditions
+temp_c = 22
+if 18 <= temp_c <= 28:
+    print("Comfortable range")
+
+# Truthiness: empty list/dict/str and zero are falsy
+cities = ["Oslo", "Bergen"]
+if cities:
+    print(f"Processing {len(cities)} cities")
+```
+
+**`match` / `case`** (Python 3.10+) is optional for advanced pattern matching; `if`/`elif`/`else` is enough for most scripts you will see in this course.
+
+## 6. Loops — `for` and `while`
+
+### `for` loops — iteration over a sequence
+
+A **`for` loop** runs the same block of code once for each item in a sequence (like a list, string, or dictionary view). It is the usual way to process many rows, files, or keys without copying and pasting logic. You can also pair values with indices using `enumerate()` when you need position as well as the item.
+
+`for` loops let you repeat code for each item in a collection:
 
 ```python
 # Loop through lists
@@ -220,6 +355,8 @@ for population in city_populations.values():
 
 ### Range Function
 
+**`range`** produces a sequence of integers on demand, which is memory-efficient and works naturally in `for` loops. You can pass one argument (stop), or start and stop, or start, stop, and step—much like slice notation but for counting. It is commonly used for repeating an action a fixed number of times or generating numeric indices.
+
 ```python
 # Generate sequences of numbers
 for i in range(5):          # 0, 1, 2, 3, 4
@@ -238,12 +375,41 @@ for num in file_numbers:
     print(f"Processing {filename}")
 ```
 
-## 6. Functions - Reusable Code
+### `while` loops — repeat while a condition holds
+
+A **`while` loop** checks a condition **before** each iteration; the body runs only while that condition is `True`. Use it when the number of repetitions is **not** known upfront (for example, reading until a sentinel value) or when modeling a simple state machine. **`break`** exits the loop early; **`continue`** skips to the next iteration.
+
+```python
+# Count up with a condition
+n = 0
+while n < 3:
+    print(n)
+    n += 1
+
+# Typical pattern: process until done
+pending = ["file_a.csv", "file_b.csv"]
+while pending:
+    path = pending.pop()
+    print(f"Would load {path}")
+
+# break: stop when you find a match
+values = [0.1, 0.5, 99.9, 1.0]
+for v in values:
+    if v > 50:
+        print("Found large value:", v)
+        break
+```
+
+Prefer a **`for`** loop when you already have an iterable or a clear `range()`; use **`while`** when progress depends on a condition that updates inside the loop.
+
+## 7. Functions - Reusable Code
+
+A **function** is a named block of code that takes inputs (**parameters**), does work, and often **returns** a result to the caller. **Arguments** are the values you pass when you call the function; **return** sends a value back (or `None` implicitly if there is no `return`). Defining functions avoids duplication, makes scripts easier to read, and lets you test one piece of logic in isolation. Default parameter values and docstrings help document behavior and common use cases.
 
 Functions help organize and reuse code:
 
 ```python
-# Simple function
+# Simple function: one argument, one return value
 def greet(name):
     """Greet a person by name"""
     return f"Hello, {name}!"
@@ -252,7 +418,7 @@ def greet(name):
 message = greet("Alice")
 print(message)  # Hello, Alice!
 
-# Function with multiple parameters
+# Multiple parameters and a returned number
 def calculate_density(population, area):
     """Calculate population density"""
     if area == 0:
@@ -273,7 +439,18 @@ mystery_city = describe_city("Mystery City", 500_000)
 print(mystery_city)
 ```
 
+**Multiple return values** are often packed in a **tuple**; unpacking at the call site keeps code clear:
+
+```python
+def min_max(values):
+    return min(values), max(values)
+
+low, high = min_max([3, 1, 4, 1, 5])
+```
+
 ### Functions with Lists and Dictionaries
+
+When a function accepts a **list** or **dictionary**, it can aggregate, filter, or reshape structured data in one place. You often loop over items or keys, use built-ins like `sum()` and `max()`, or build a new dict to return several related results at once. This pattern mirrors how you will later wrap pandas or GIS operations in small, testable helpers.
 
 ```python
 def analyze_cities(cities_dict):
@@ -303,7 +480,9 @@ print(f"Largest city: {analysis['largest_city']}")
 print(f"Average population: {analysis['average_population']:,.0f}")
 ```
 
-## 7. Importing Libraries
+## 8. Importing Libraries
+
+A **library** (or **module**) is reusable code—functions, classes, and constants—packaged so you can load it into your program. The `import` statement brings that code into scope, optionally under a short **alias** (for example `np` for NumPy and `pd` for pandas). Using the standard library and well-known packages saves time and avoids reimplementing common tasks like math, dates, and random numbers.
 
 Libraries extend Python's capabilities:
 
@@ -323,66 +502,486 @@ print(datetime.now())       # Current date and time
 from math import sqrt, pi, sin
 print(sqrt(25))  # 5.0
 
-# Import with alias
-import pandas as pd
+# Import with alias (NumPy first is a common teaching order)
 import numpy as np
+import pandas as pd
 
 # These are common conventions in data science
 ```
 
-## 8. Working with CSV Data using Pandas
+## 9. File Handling
 
-Pandas is the most popular library for data analysis:
+Most real programs **read input** from disk (logs, field notes, CSV exports, config text) and **write output** (reports, cleaned tables, small caches). Python’s built-in tools focus on **plain text** and **binary** streams: open a path, read or write bytes or decoded text, and close the file reliably. Tabular **CSV** is often easier with **pandas** (section 11); here you learn the **`open()`** / **`pathlib`** patterns that underpin any format, including larger files you stream line by line.
+
+### Files, paths, and programs
+
+A **path** is a string (or `pathlib.Path`) that names a location on disk, for example `"data/readings.txt"` or `"C:/Users/you/project/config.txt"`. On Windows, both backslashes and forward slashes often work in Python strings; forward slashes are portable in code.
+
+A minimal **program** that uses files has three parts: (1) choose a path, (2) **open** the file in the right **mode**, (3) **read** or **write**, then **close** (or use `with`, which closes for you).
+
+| Mode | Meaning |
+|------|--------|
+| `"r"` | Read text (default); error if file missing |
+| `"w"` | Write text; creates or **truncates** (empties) the file |
+| `"a"` | Append text; creates file if needed, keeps existing content |
+| `"rb"` / `"wb"` | Read/write **binary** (bytes)—images, some GIS binaries, not decoded as text |
+
+Always specify **`encoding="utf-8"`** for text files so accents and international characters behave consistently across machines.
+
+### The `with` statement and `open()`
+
+`open()` returns a **file object**. Wrapping it in **`with`** guarantees the file is **closed** when the block ends—even if an error occurs—so you do not leak handles or lose buffered data on write.
+
+```python
+from pathlib import Path
+
+# Ensure a folder exists (optional; avoids errors on write)
+Path("data").mkdir(parents=True, exist_ok=True)
+
+# Write text (UTF-8)
+with open("data/note.txt", "w", encoding="utf-8") as f:
+    f.write("First line\n")
+    f.write("Second line\n")
+
+# Read entire file as one string
+with open("data/note.txt", "r", encoding="utf-8") as f:
+    text = f.read()
+print(text)
+
+# Memory-friendly: process line by line (good for large logs)
+with open("data/note.txt", "r", encoding="utf-8") as f:
+    for line in f:
+        print(line.strip())  # strip removes trailing newline/spaces
+```
+
+!!! tip "File handling habits"
+    - Prefer **`with open(...)`** over calling `f.close()` yourself
+    - Use **`encoding="utf-8"`** for all text files unless a legacy format forces something else
+    - **`"w"` overwrites** the whole file; use **`"a"`** to append or open a different filename if you must keep the old version
+
+### `pathlib` for paths (recommended basics)
+
+The **`pathlib`** module treats paths as **`Path`** objects. You can join segments with `/`, check existence, and read or write **whole small files** in one call—handy for configs and notes.
+
+```python
+from pathlib import Path
+
+root = Path("data")
+file_path = root / "summary.txt"
+
+root.mkdir(parents=True, exist_ok=True)
+file_path.write_text("Total sites: 42\n", encoding="utf-8")
+
+content = file_path.read_text(encoding="utf-8")
+print(content)
+print(file_path.exists(), file_path.name)
+```
+
+For **very large** files, still stream with `open()` and a `for line in f` loop instead of `read_text()`.
+
+### When things go wrong
+
+Common issues: wrong path (**`FileNotFoundError`**), permission errors, or disk full on write. For short scripts you can catch **`FileNotFoundError`** and choose a default (for example create a folder or start with an empty file). For **encoding** problems, confirm the file is really UTF-8 text before forcing **`encoding="utf-8"`**; binary data should use **`"rb"`** / **`"wb"`** instead of text modes.
+
+```python
+from pathlib import Path
+
+path = Path("data/maybe_missing.txt")
+try:
+    text = path.read_text(encoding="utf-8")
+except FileNotFoundError:
+    print("No file yet; starting empty")
+    text = ""
+
+print(repr(text[:200]))  # first characters, if any
+```
+
+!!! tip "Text files vs tables vs binary"
+    - **Plain text** (this section): logs, notes, simple line-based formats; always set **`encoding="utf-8"`** unless a legacy format requires something else
+    - **CSV / tables**: flat columns; use **pandas** `read_csv` / `to_csv` in section 11 when rows and columns dominate
+    - **Binary** (`"rb"` / `"wb"`): images, some GIS binaries; you read **`bytes`**, not decoded strings
+
+## 10. NumPy
+
+**NumPy** (**Numerical Python**) is a library for working with **homogeneous, fixed-type arrays** of numbers (and similar values) in one or more dimensions. Its core type is the **`ndarray`**: values sit in a contiguous block of memory, so element-wise math and reductions (sum, mean, min, max) run in **compiled code** instead of slow Python loops over scalars.
+
+**Where NumPy shows up:** scientific and statistical computing, **machine-learning** stacks (many frameworks accept or return NumPy arrays), **image and raster grids** (elevation bands, satellite pixels), **coordinate arrays** (lists of x/y or lon/lat as vectors), and as the **numeric engine behind pandas**—a `DataFrame` column of floats is often backed by a NumPy array. In this course you will see it again when rasters and array-shaped results appear in later modules.
+
+The usual import alias is **`np`**. Below: build an array from a Python list, inspect **`shape`**, use **`np.mean`**, and apply **vectorized** arithmetic (multiply every element at once).
+
+```python
+import numpy as np
+a = np.array([101.2, 98.0, 105.5, 99.1])
+print(a.shape, np.mean(a))   # (4,) 100.95 — dimensions and average
+print((a * 2).max())         # 211.0 — whole array × 2, then largest value
+```
+
+### String arrays (`dtype` like `<U6`)
+
+NumPy can store text in arrays too, using **fixed-width Unicode** dtypes (often written **`U{n}`** or **`<U{n}`**, meaning “Unicode string, up to **n** characters per element”). The width is chosen from the **longest string at creation time** unless you pass an explicit **`dtype`**.
+
+**Example: creating a string array**
+
+```python
+import numpy as np
+
+arr = np.array(["apple", "banana", "cherry"])
+print(arr)
+print(arr.dtype)   # e.g. <U6 — Unicode, max length 6 (from "banana")
+```
+
+Here **`dtype`** looks like **`<U6`**: a Unicode string with **room for six characters** per slot (because **"banana"** has six letters).
+
+### Fixed-length behavior (truncation)
+
+Each element’s storage has a **fixed maximum length**. If you assign a **longer** string than the dtype allows, NumPy **truncates**—it does **not** grow the element like a Python `list` of arbitrary strings.
+
+```python
+arr = np.array(["cat", "dog"])
+arr[0] = "elephant"
+print(arr)   # ['ele' 'dog'] — "elephant" truncated to fit the original width (3)
+```
+
+!!! warning "String truncation"
+    Always know your **string dtype width** when you assign into NumPy string arrays. Silent truncation is a common source of wrong labels in pipelines that mix NumPy and file I/O.
+
+### Choosing the string length with `dtype`
+
+If you know you need longer values, set **`dtype`** when you create the array (for example **`"U10"`** for up to 10 characters per element):
+
+```python
+arr = np.array(["cat", "dog"], dtype="U10")
+arr[0] = "elephant"
+print(arr)   # ['elephant' 'dog'] — fits within 10 characters
+```
+
+### Vectorized string operations (`np.char`)
+
+For element-wise text operations on the whole array, NumPy exposes **`np.char`** (similar ideas to the older **`np.chararray`**). These are **limited** compared to full Python **`str`** methods, but they avoid writing a Python `for` loop over rows.
+
+```python
+words = np.array(["apple", "Banana"], dtype="U10")  # room for longer results
+print(np.char.upper(words))       # ['APPLE' 'BANANA']
+print(np.char.lower(words))       # ['apple' 'banana']
+print(np.char.add(words, "s"))    # ['apples' 'Bananas']
+```
+
+For **variable-length text**, **pandas** `Series` of Python `object` strings or dedicated **string dtypes** are often easier; use NumPy string dtypes when you deliberately want **compact, fixed-width** storage.
+
+!!! tip "NumPy Tips"
+    - Prefer **vectorized** operations (`arr * 2`, `np.sqrt(arr)`) over `for` loops over single elements when arrays are large
+    - `shape`, `dtype`, and `reshape()` are the first things to check when an array does not match what you expect
+    - In the next section, pandas **Series** often use the same NumPy-style stats (for example `series.mean()` delegates to fast array code)
+
+## 11. Pandas
+
+**pandas** is an open-source Python library for **tabular data**: a table of **rows** and **named columns**, plus an optional **row index** (labels). The main type is the **`DataFrame`**. Each column is a **`Series`**—one column of values aligned to the same index. Operations are usually **column-wise** or **row-filtering**, similar to **SQL** or a **spreadsheet**, but scripted and reproducible.
+
+### Use cases
+
+- **Exploratory analysis** on CSV or database extracts: sort, filter, group, plot-ready columns.
+- **Cleaning survey or sensor tables**: fix missing values, parse dates, drop duplicates, rename fields.
+- **Merging** spreadsheets or API results on keys (joins), reshaping wide vs long tables.
+- **Preparing attributes** before or after GIS work: **GeoPandas** `GeoDataFrame` **is** a pandas `DataFrame` plus a geometry column, so **filter**, **merge**, and **aggregate** patterns transfer directly.
+
+### Advantages
+
+- **Labels** — refer to **`"population"`** instead of remembering column positions.
+- **Mixed types** — integers, floats, text, datetimes, and **missing values** in one table.
+- **Fast column math** — many operations delegate to **NumPy**-style vectorized code.
+- **Rich I/O** — **`read_csv`**, **`to_csv`**, and many other formats; easy exchange with Excel workflows.
+- **Ecosystem** — huge community, stable API, tight integration with **matplotlib**, **scikit-learn**, and **GeoPandas**.
+
+Below, each **code block is short (about two or three lines)** so you can run or copy one idea at a time. Use **`import pandas as pd`** once per session. Unless a block defines its own table, **`df`** is the **two-row Oslo / Bergen** frame from the first **dict-of-columns** example—run that block first if you execute the snippets in order.
+
+### Create a `DataFrame` from a dict of columns
 
 ```python
 import pandas as pd
+df = pd.DataFrame({"city": ["Oslo", "Bergen"], "pop": [700_000, 290_000]})
+print(df)
+```
 
-# Create sample data
-data = {
-    'city': ['New York', 'London', 'Tokyo', 'Sydney', 'Paris'],
-    'country': ['USA', 'UK', 'Japan', 'Australia', 'France'],
-    'population': [8_400_000, 9_000_000, 13_960_000, 5_300_000, 2_161_000],
-    'area_km2': [783, 1572, 2194, 12368, 105]
-}
+**Output:**
 
-# Create DataFrame
-df = pd.DataFrame(data)
+```text
+     city     pop
+0    Oslo  700000
+1  Bergen  290000
+```
 
-# Display data
-print("First 3 rows:")
-print(df.head(3))
+### Create a `DataFrame` from a list of row dicts
 
-print("\nDataFrame info:")
-print(df.info())
+```python
+df_records = pd.DataFrame([{"city": "Oslo", "pop": 700_000}, {"city": "Bergen", "pop": 290_000}])
+print(df_records)
+```
 
-print("\nBasic statistics:")
+**Output:**
+
+```text
+     city     pop
+0    Oslo  700000
+1  Bergen  290000
+```
+
+### Access one column (returns a `Series`)
+
+```python
+cities = df["city"]
+print(cities.iloc[0])
+```
+
+**Output:**
+
+```text
+Oslo
+```
+
+### Access several columns
+
+```python
+subset_cols = df[["city", "pop"]]
+print(subset_cols.head())
+```
+
+**Output:**
+
+```text
+     city     pop
+0    Oslo  700000
+1  Bergen  290000
+```
+
+### Access one cell by label (`loc`)
+
+```python
+val = df.loc[0, "pop"]
+print(val)
+```
+
+**Output:**
+
+```text
+700000
+```
+
+### Access by position (`iloc`)
+
+```python
+first_row_first_col = df.iloc[0, 0]
+print(first_row_first_col)
+```
+
+**Output:**
+
+```text
+Oslo
+```
+
+### Add a new column
+
+```python
+df["country"] = "Norway"
+print(df)
+```
+
+**Output:**
+
+```text
+     city     pop country
+0    Oslo  700000  Norway
+1  Bergen  290000  Norway
+```
+
+### Edit one cell
+
+```python
+df.loc[0, "pop"] = 710_000
+print(df)
+```
+
+**Output:**
+
+```text
+     city     pop country
+0    Oslo  710000  Norway
+1  Bergen  290000  Norway
+```
+
+### Filter rows (boolean condition)
+
+```python
+big = df[df["pop"] > 500_000]
+print(big)
+```
+
+**Output:**
+
+```text
+   city     pop country
+0  Oslo  710000  Norway
+```
+
+### Delete a column
+
+```python
+df2 = df.drop(columns=["country"])
+print(df2)
+```
+
+**Output:**
+
+```text
+     city     pop
+0    Oslo  710000
+1  Bergen  290000
+```
+
+### Delete a row by index label
+
+```python
+df3 = df2.drop(index=[1])
+print(df3)
+```
+
+**Output:**
+
+```text
+   city     pop
+0  Oslo  710000
+```
+
+### Detect missing values (`NaN`)
+
+```python
+df_m = pd.DataFrame({"a": [1.0, None], "b": [2, 3]})
+print(df_m.isna().sum())
+```
+
+**Output:**
+
+```text
+a    1
+b    0
+dtype: int64
+```
+
+### Fill missing values
+
+```python
+df_m["a"] = df_m["a"].fillna(0.0)
+print(df_m)
+```
+
+**Output:**
+
+```text
+     a  b
+0  1.0  2
+1  0.0  3
+```
+
+### Drop rows that contain any null
+
+```python
+df_n = pd.DataFrame({"x": [1.0, None], "y": [2.0, 3.0]})
+df_clean = df_n.dropna()
+print(df_clean)
+```
+
+**Output:**
+
+```text
+     x    y
+0  1.0  2.0
+```
+
+### Drop duplicate rows
+
+```python
+dups = pd.DataFrame({"id": [1, 1, 2], "v": [10, 10, 20]})
+print(dups.drop_duplicates())
+```
+
+**Output:**
+
+```text
+   id   v
+0   1  10
+2   2  20
+```
+
+### Rename columns
+
+```python
+df_r = df.rename(columns={"pop": "population"})
+print(df_r)
+```
+
+**Output:**
+
+```text
+     city  population country
+0    Oslo      710000  Norway
+1  Bergen      290000  Norway
+```
+
+### Sort rows
+
+```python
+df_s = df.sort_values("pop", ascending=False)
+print(df_s)
+```
+
+**Output:**
+
+```text
+     city     pop country
+0    Oslo  710000  Norway
+1  Bergen  290000  Norway
+```
+
+### Read and write CSV
+
+```python
+# df = pd.read_csv("data/cities.csv")
+# df.to_csv("data/out.csv", index=False)
+```
+
+**Output:** *(none in the console—paths on disk are read or written when you uncomment and run.)*
+
+### Quick inspection
+
+```python
+print(df.shape)
 print(df.describe())
+```
 
-# Calculate population density
-df['density'] = df['population'] / df['area_km2']
+**Output:**
 
-# Filter data
-large_cities = df[df['population'] > 5_000_000]
-print("\nCities with population > 5 million:")
-print(large_cities[['city', 'population']])
-
-# Sort data
-df_sorted = df.sort_values('density', ascending=False)
-print("\nCities by density (highest first):")
-print(df_sorted[['city', 'density']].round(1))
-
-# Group by country (if we had more data)
-print(f"\nAverage population: {df['population'].mean():,.0f}")
-print(f"Total population: {df['population'].sum():,}")
+```text
+(2, 3)
+                 pop
+count       2.000000
+mean   500000.000000
+std    296984.848098
+min    290000.000000
+25%    395000.000000
+50%    500000.000000
+75%    605000.000000
+max    710000.000000
 ```
 
 !!! tip "Pandas Tips"
-    - Use `df.head()` to see first few rows
-    - Use `df.info()` to see data types and missing values
-    - Use `df.describe()` for statistical summary
-    - Column names with spaces need brackets: `df['column name']`
+    - Prefer **`df["column"]`** over **`df.column`** when column names have spaces or clash with method names.
+    - After **`drop`**, **`rename`**, or many filters, assign back: **`df = df.drop(...)`** unless you deliberately use **`inplace=True`**.
+    - Use **`df.info()`** early to see **dtypes** and **non-null counts**; use **`df.describe()`** for numeric columns.
+    - For CSV: **`pd.read_csv("path.csv")`** in, **`df.to_csv("path.csv", index=False)`** out (omit the index column unless you need it).
 
 ## Practice Problems
+
+These exercises apply the ideas from each section in small, self-contained scenarios. Try to solve them before opening the solutions, then compare your approach to the reference code. Repeating patterns like loops, dicts, and functions here will make later geospatial notebooks feel familiar.
 
 ### Problem 1: City Analysis
 Create a program that analyzes city data:
@@ -532,15 +1131,60 @@ country_data = {
     print("\nData saved to country_analysis.csv")
     ```
 
+### Problem 4: File handling
+
+Practice reading and writing **plain text** on disk. Create a short script (or notebook cell sequence) that:
+
+```python
+# Your task:
+# 1. Create a list of strings: at least two lines, each "name,lat,lon" for a fictional station.
+# 2. Use pathlib to ensure a data/ folder exists; write the lines to data/stations.txt (UTF-8, one station per line).
+# 3. Read the file back and print how many non-empty lines were loaded.
+# 4. Open the same file in append mode ("a") and add one more station line.
+
+# Use with open(..., encoding="utf-8") for every read/write.
+```
+
+??? success "Solution"
+    ```python
+    from pathlib import Path
+
+    lines = [
+        "Alpha,59.9,10.7",
+        "Beta,60.4,5.3",
+    ]
+
+    data_dir = Path("data")
+    data_dir.mkdir(parents=True, exist_ok=True)
+    path = data_dir / "stations.txt"
+
+    with open(path, "w", encoding="utf-8") as f:
+        f.write("\n".join(lines) + "\n")
+
+    with open(path, "r", encoding="utf-8") as f:
+        loaded = [ln.strip() for ln in f if ln.strip()]
+
+    print(f"Loaded {len(loaded)} stations")
+
+    with open(path, "a", encoding="utf-8") as f:
+        f.write("Gamma,58.0,6.9\n")
+    ```
+
 ## Key Takeaways
 
+The lists below condense the main vocabulary and habits from this module. Use them as a checklist when you review or when you read someone else's Python for the first time. The best practices box highlights style and robustness, not just syntax.
+
 !!! success "What You've Learned"
-    - **Variables**: Store and manipulate different types of data
-    - **Lists**: Work with ordered collections of items
-    - **Dictionaries**: Store key-value pairs for structured data
-    - **Loops**: Iterate through data efficiently
-    - **Functions**: Create reusable code blocks
-    - **Libraries**: Extend Python's capabilities with pandas
+    - **Variables & types**: `int`, `float`, `str`, `bool`, and basic conversions
+    - **Lists, tuples, sets**: Ordered vs mutable vs unique; when to use each
+    - **Dictionaries**: Key-value pairs for structured data and fast lookup
+    - **Conditionals**: `if` / `elif` / `else` for branching
+    - **Loops**: `for` over sequences and `while` when a condition drives repetition
+    - **Functions**: Parameters, arguments, return values, and small reusable units
+    - **Libraries**: Extend Python with NumPy, pandas, and other packages
+    - **Files**: `open()` with `with`, UTF-8, `pathlib`, text vs binary modes
+    - **NumPy**: Fast numeric arrays, grids, and vectorized math
+    - **Pandas**: `DataFrame` / `Series`, `loc` / `iloc`, add-edit-drop columns and rows, CSV I/O
     - **Data Analysis**: Basic operations on real-world datasets
 
 !!! tip "Best Practices"
@@ -549,8 +1193,11 @@ country_data = {
     - Use f-strings for string formatting
     - Handle edge cases (like division by zero)
     - Import only what you need from libraries
+    - Always use **`encoding="utf-8"`** for text files unless you have a specific reason not to
 
 ## Next Steps
+
+The course now turns from general Python to geographic data models and tools. You will reuse variables, collections, loops, functions, files, NumPy arrays, and pandas tables as soon as you load spatial datasets, rasters, and attribute tables. The next module introduces how those datasets are represented and what to watch for when coordinates and CRS enter the picture.
 
 In the next module, we'll apply these Python skills to geospatial data, learning about:
 - Vector vs Raster data

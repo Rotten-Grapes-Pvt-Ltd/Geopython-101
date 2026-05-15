@@ -1,0 +1,15 @@
+SET standard_conforming_strings = ON;
+DROP TABLE IF EXISTS "public"."example" CASCADE;
+BEGIN;
+CREATE TABLE "public"."example"();
+ALTER TABLE "public"."example" ADD COLUMN "ogc_fid" SERIAL CONSTRAINT "example_pk" PRIMARY KEY;
+SELECT AddGeometryColumn('public','example','wkb_geometry',4326,'POINT',2);
+ALTER TABLE "public"."example" ADD COLUMN "id" NUMERIC(10,0);
+ALTER TABLE "public"."example" ADD COLUMN "name" VARCHAR;
+ALTER TABLE "public"."example" ADD COLUMN "category" VARCHAR;
+ALTER TABLE "public"."example" ADD COLUMN "status" VARCHAR;
+ALTER TABLE "public"."example" ADD COLUMN "value" NUMERIC(10,0);
+INSERT INTO "public"."example" ("wkb_geometry", "id", "name", "category", "status", "value") VALUES ('0101000020E6100000B0C2FEC9E7E35340783547E2A8973540', 3, 'Feature 3', 'site', 'active', 300);
+INSERT INTO "public"."example" ("wkb_geometry", "id", "name", "category", "status", "value") VALUES ('0101000020E610000098D1ED89E91053400033893E656D3340', 4, 'Feature 4', 'site', 'inactive', 400);
+CREATE INDEX "example_wkb_geometry_geom_idx" ON "public"."example" USING GIST ("wkb_geometry");
+COMMIT;

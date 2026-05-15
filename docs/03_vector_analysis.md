@@ -5,26 +5,676 @@ icon: material/vector-polygon
 # Module 3: Vector Data & Analysis
 
 ## Learning Goals
-- Master GeoDataFrames and the geometry column
-- Perform spatial operations (buffers, intersections, joins)
-- Filter features by attributes and spatial relationships
-- Reproject data for accurate analysis
-- Save results in various formats
-- Create new geographic features
+
+- Define **vector data** as geometry + attributes and contrast **point, line, polygon** (and **multipart**) roles in GIS
+- Navigate common **vector formats** (GeoJSON, Shapefile, GeoPackage, and others) and open them with **GeoPandas**
+- Apply **Shapely** to one geometry at a time: **buffer**, **union**, **intersection**, and predicates such as **`within`** / **`intersects`**
+- Build and explore **GeoDataFrames**: the **`geometry`** column, **CRS** on the table, and **pandas-style** row/column work
+- Run the **GeoPandas basics** loop: **read**, **filter/update attributes**, **reproject** when analysis needs consistent units, **export** to disk
+- Complete the **basics assignment** path (**geojson.io**, small files, Shapely + GeoPandas) before the deeper **advanced GeoPandas** topics
+- Use **spatial joins**, **overlays**, and other **spatial operations** to relate layers and summarize by geography
+- **Create** new geometries (from coordinates or operations) and **write** results to GeoJSON, GeoPackage, or other supported drivers
+
+## What is vector data?
+
+**Vector data** represents real-world objects as **discrete shapes** built from **coordinates** (and optional **measures** or **z** values). Each record is usually a **feature**: a **geometry** (where it is) plus **attributes** (what it is—name, population, land use, and so on). It is stored as **vertices** and how they connect (paths and closed rings), which keeps boundaries, networks, and labelled locations efficient to edit, query, and style.
+
+```mermaid
+flowchart LR
+    F[Feature]
+    F --> G[Geometry]
+    F --> A[Attributes]
+    G --> V[Vertices / coordinates]
+```
+
+### Types of vector geometries
+
+Vector layers store one **geometry type** per column (or mixed types in some formats, but GeoPandas still uses one column). The standard types you will see in **GeoJSON**, **Shapefiles**, **GeoPackage**, and **Shapely** are:
+
+| Type | What it stores | Examples |
+|------|----------------|----------|
+| **Point** | Single `(x, y)` (often lon/lat) | City centroid, sensor, well |
+| **LineString** | Ordered sequence of vertices (a path) | Road segment, river reach, contour as line |
+| **Polygon** | Closed ring(s): one **exterior** boundary and optional **interior** rings (holes) | Country, lake, building footprint |
+| **MultiPoint** | Several separate points in one feature | Multi-campus school as one record |
+| **MultiLineString** | Several lines in one feature | Disconnected trail segments under one id |
+| **MultiPolygon** | Several polygons in one feature | Archipelago, country with exclaves |
+| **GeometryCollection** | Mixed geometries in one feature | Rare; used when one id truly mixes types |
+
+**Simple vs multipart:** a **Polygon** is one connected area; a **MultiPolygon** is many areas that belong to one attribute row (one “feature” in the table). Operations like **buffer** or **union** may change simple types to multipart when shapes split or merge.
+
+### Features, layers, and files
+
+- **Feature** — one row: geometry + attribute fields.
+- **Layer** — a collection of features of the same kind (one thematic map layer: “roads”, “parcels”).
+- **File / dataset** — may hold one or more layers (GeoPackage and File Geodatabase support multiple layers; one Shapefile set is usually one layer).
+
+The **on-disk format** is only a container: geometry types (Point, Polygon, …) are the same across formats. The next section lists the main **vector file types** you will see in the wild and open with GeoPandas.
+
+
+## Common vector file formats
+
+Vector GIS data are stored in many **file and database formats**.
+
+
+| Format | Typical extension(s) | Layers | Typical use | Notes | Example download |
+|--------|----------------------|--------|-------------|-------|-------------------|
+| **GeoJSON** | `.geojson`, `.json` | Usually one sequence | APIs, web maps, teaching | Plain text; large files can be slow | [example.geojson](assets/examples/example.geojson) |
+| **ESRI Shapefile** | `.shp` (+ required sidecars) | One per `.shp` set | Legacy industry exchange | Keep `.dbf`, `.shx`, `.prj` together; 2 GB size limit; use `.cpg` for UTF-8 text | [example.zip](assets/examples/example.zip) (zipped sidecars) |
+| **KML** | `.kml` | Folders / structure | Google Earth, simple web | XML; often read via GDAL “KML” / “LIBKML” driver | [example.kml](assets/examples/example.kml) |
+| **PostGIS** | (database connection, not a file) | Schemas / tables | Server-side GIS | `gpd.read_postgis()` with SQL | [example.sql](assets/examples/example.sql) (pg_dump–style script) |
+| **CSV** | `.csv` | One table | Spreadsheets with a WKT or lon/lat columns | Not a spatial format unless columns are interpreted | [example.csv](assets/examples/example.csv) (`lon` / `lat` columns) |
+
+
+Many other formats exist (**GeoPackage**, **GML**, **DXF**, etc.); check [GDAL vector drivers](https://gdal.org/drivers/vector/index.html) for the full list your install supports.
+
+### Shapefile: keep the family together
+
+A **shapefile** is never just `.shp`. At minimum you need:
+
+- **`.shp`** — geometry  
+- **`.shx`** — index  
+- **`.dbf`** — attributes  
+
+Usually also **`.prj`** (CRS) and often **`.cpg`** (text encoding, e.g. UTF-8). Copy or share the **whole set** with the same base name.
+
+
+## Shapely — 
+
+**Shapely** is a Python library used for creating and working with geometric shapes like points, lines, and polygons. It helps perform spatial operations such as measuring distance, calculating area, and checking relationships like intersection or containment. It is widely used in GIS and works well with GeoPandas.
+
+**Shapely** gives you **`Point`**, **`LineString`**, **`Polygon`**, and **multi** variants as plain Python objects. You construct coordinates, then call methods such as **`.buffer()`**, **`.union()`**, **`.intersection()`**, and **predicates** like **`.within()`** and **`.intersects()`**. Shapely does **not** attach attribute tables—that is what **GeoPandas** adds—but every geometry stored in a GeoDataFrame’s `geometry` column **is a Shapely object**.
+
+
+
+
+### Block 1 — Buffer around a point
+
+**`.buffer(distance)`** uses the **same units as your coordinates** (here: degrees). For buffers in **meters**, project with GeoPandas (`to_crs("EPSG:32643")`) before buffering, as in the next section.
+
+```python
+"""One program: buffer a point → print one GeoJSON Feature."""
+import json
+from shapely.geometry import Point, mapping
+
+site = Point(79.03740972004755, 22.178636725204527)
+buffer_polygon = site.buffer(0.12)  # radius in degrees (illustration only)
+
+feature = {
+    "type": "Feature",
+    "properties": {
+        "operation": "buffer",
+        "radius_degrees": 0.12,
+        "center_site": "site_1",
+    },
+    "geometry": mapping(buffer_polygon),
+}
+print(json.dumps(feature, indent=2, ensure_ascii=False))
+```
+
+!!! tip "Buffers in meters"
+    Prefer **`gdf.to_crs("EPSG:32643")`** (WGS 84 / UTM zone 43N for this longitude) then **`.buffer(50000)`** for 50 km, then **`to_crs(4326)`** if you need lon/lat again.
+
+**Printed GeoJSON (`Feature`) output — buffer (sample)**
+
+_Formatted (scroll the box if your theme wraps it):_
+
+<div style="max-height:22rem;overflow-y:auto;border:1px solid #ccc;border-radius:6px;padding:0.5rem;margin:0.75rem 0;background:var(--md-code-bg-color, #f4f4f4);">
+
+```json
+{
+  "type": "Feature",
+  "properties": {
+    "operation": "buffer",
+    "radius_degrees": 0.12,
+    "center_site": "site_1"
+  },
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [79.15740972004755, 22.178636725204527],
+        [79.15683188724822, 22.16687466836498],
+        [79.15510395369594, 22.15522588656259],
+        [79.15224256033541, 22.143802563933992],
+        [79.1482752639489, 22.132714713320716],
+        [79.14324027176936, 22.122069116785408],
+        [79.13718607352385, 22.111968297242175],
+        [79.13017097445108, 22.10250953110489],
+        [79.12226253378994, 22.09378391146214],
+        [79.11353691414719, 22.085875470801],
+        [79.1040781480099, 22.078860371728222],
+        [79.09397732846666, 22.072806173482725],
+        [79.08333173193137, 22.067771181303172],
+        [79.07224388131809, 22.063803884916663],
+        [79.06082055868949, 22.06094249155614],
+        [79.04917177688709, 22.059214558003863],
+        [79.03740972004755, 22.058636725204526],
+        [79.025647663208, 22.059214558003863],
+        [79.01399888140561, 22.06094249155614],
+        [79.00257555877701, 22.063803884916663],
+        [78.99148770816373, 22.067771181303172],
+        [78.98084211162843, 22.072806173482725],
+        [78.9707412920852, 22.078860371728222],
+        [78.96128252594791, 22.085875470801],
+        [78.95255690630516, 22.09378391146214],
+        [78.94464846564402, 22.10250953110489],
+        [78.93763336657125, 22.111968297242175],
+        [78.93157916832574, 22.122069116785408],
+        [78.9265441761462, 22.132714713320716],
+        [78.92257687975969, 22.143802563933992],
+        [78.91971548639916, 22.15522588656259],
+        [78.91798755284688, 22.16687466836498],
+        [78.91740972004754, 22.178636725204527],
+        [78.91798755284688, 22.190398782044074],
+        [78.91971548639916, 22.202047563846463],
+        [78.92257687975969, 22.21347088647506],
+        [78.9265441761462, 22.224558737088337],
+        [78.93157916832574, 22.235204333623646],
+        [78.93763336657125, 22.24530515316688],
+        [78.94464846564402, 22.254763919304164],
+        [78.95255690630516, 22.263489538946914],
+        [78.96128252594791, 22.271397979608054],
+        [78.9707412920852, 22.27841307868083],
+        [78.98084211162843, 22.28446727692633],
+        [78.99148770816373, 22.28950226910588],
+        [79.00257555877701, 22.29346956549239],
+        [79.01399888140561, 22.296330958852913],
+        [79.025647663208, 22.29805889240519],
+        [79.03740972004755, 22.298636725204528],
+        [79.04917177688709, 22.29805889240519],
+        [79.06082055868949, 22.296330958852913],
+        [79.07224388131809, 22.29346956549239],
+        [79.08333173193137, 22.28950226910588],
+        [79.09397732846666, 22.28446727692633],
+        [79.1040781480099, 22.27841307868083],
+        [79.11353691414719, 22.271397979608054],
+        [79.12226253378994, 22.263489538946914],
+        [79.13017097445108, 22.254763919304164],
+        [79.13718607352385, 22.24530515316688],
+        [79.14324027176936, 22.235204333623646],
+        [79.1482752639489, 22.224558737088337],
+        [79.15224256033541, 22.21347088647506],
+        [79.15510395369594, 22.202047563846463],
+        [79.15683188724822, 22.190398782044074],
+        [79.15740972004755, 22.178636725204527]
+      ]
+    ]
+  }
+}
+```
+
+</div>
+
+**Map preview** — buffer around site_1 (same coordinates as above):
+
+![Buffer polygon around site_1 in the India demo area](assets/buffer.png)
+
+### Block 2 — LineString from three points
+
+Builds one **LineString** through the three survey coordinates (order: site_1 → site_2 → site_3) and prints it as GeoJSON.
+
+```python
+"""One program: three points → one line → print one GeoJSON Feature."""
+import json
+from shapely.geometry import Point, LineString, mapping
+
+p1 = Point(79.03740972004755, 22.178636725204527)
+p2 = Point(79.55494947888741, 23.199065028047414)
+p3 = Point(80.7856252663941, 22.58277453021138)
+route = LineString([(p1.x, p1.y), (p2.x, p2.y), (p3.x, p3.y)])
+
+feature = {
+    "type": "Feature",
+    "properties": {
+        "operation": "line_from_points",
+        "order": ["site_1", "site_2", "site_3"],
+    },
+    "geometry": mapping(route),
+}
+print(json.dumps(feature, indent=2, ensure_ascii=False))
+```
+
+**Printed GeoJSON (`Feature`) output — line from points (sample)**
+
+_Formatted (scroll):_
+
+<div style="max-height:22rem;overflow-y:auto;border:1px solid #ccc;border-radius:6px;padding:0.5rem;margin:0.75rem 0;background:var(--md-code-bg-color, #f4f4f4);">
+
+```json
+{
+  "type": "Feature",
+  "properties": {
+    "operation": "line_from_points",
+    "order": [
+      "site_1",
+      "site_2",
+      "site_3"
+    ]
+  },
+  "geometry": {
+    "type": "LineString",
+    "coordinates": [
+      [
+        79.03740972004755,
+        22.178636725204527
+      ],
+      [
+        79.55494947888741,
+        23.199065028047414
+      ],
+      [
+        80.7856252663941,
+        22.58277453021138
+      ]
+    ]
+  }
+}
+```
+
+</div>
+
+**Map preview** — line through site_1 → site_2 → site_3:
+
+![LineString connecting the three survey points](assets/lines_from_points.png)
+
+### Block 3 — Intersection of two polygons
+
+Computes **`poly_a.intersection(poly_b)`** (shared area only) and prints it as one GeoJSON **Feature**.
+
+```python
+"""One program: two polygons → intersection → print one GeoJSON Feature."""
+import json
+from shapely.geometry import Polygon, mapping
+
+poly_a = Polygon(
+    [
+        (75.70190002567679, 21.72372690573995),
+        (75.70190002567679, 20.241430489641303),
+        (78.05657866688904, 20.241430489641303),
+        (78.05657866688904, 21.72372690573995),
+        (75.70190002567679, 21.72372690573995),
+    ]
+)
+poly_b = Polygon(
+    [
+        (77.30739303922036, 20.93443718935589),
+        (77.30739303922036, 18.778554619422025),
+        (80.17952030424942, 18.778554619422025),
+        (80.17952030424942, 20.93443718935589),
+        (77.30739303922036, 20.93443718935589),
+    ]
+)
+overlap = poly_a.intersection(poly_b)
+
+feature = {
+    "type": "Feature",
+    "properties": {"operation": "intersection", "inputs": ["region_north", "region_south"]},
+    "geometry": mapping(overlap),
+}
+print(json.dumps(feature, indent=2, ensure_ascii=False))
+```
+
+**Printed GeoJSON (`Feature`) output — intersection (sample)**
+
+_Formatted (scroll):_
+
+<div style="max-height:22rem;overflow-y:auto;border:1px solid #ccc;border-radius:6px;padding:0.5rem;margin:0.75rem 0;background:var(--md-code-bg-color, #f4f4f4);">
+
+```json
+{
+  "type": "Feature",
+  "properties": {
+    "operation": "intersection",
+    "inputs": [
+      "region_north",
+      "region_south"
+    ]
+  },
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          78.05657866688904,
+          20.241430489641303
+        ],
+        [
+          77.30739303922036,
+          20.241430489641303
+        ],
+        [
+          77.30739303922036,
+          20.93443718935589
+        ],
+        [
+          78.05657866688904,
+          20.93443718935589
+        ],
+        [
+          78.05657866688904,
+          20.241430489641303
+        ]
+      ]
+    ]
+  }
+}
+```
+
+</div>
+
+**Map preview** — intersection of region north and region south:
+
+![Intersection polygon (overlap of the two regions)](assets/intersection.png)
+
+### Block 4 — Union of two polygons
+
+Computes **`poly_a.union(poly_b)`** (merged outline) and prints it as one GeoJSON **Feature**.
+
+```python
+"""One program: two polygons → union → print one GeoJSON Feature."""
+import json
+from shapely.geometry import Polygon, mapping
+
+poly_a = Polygon(
+    [
+        (75.70190002567679, 21.72372690573995),
+        (75.70190002567679, 20.241430489641303),
+        (78.05657866688904, 20.241430489641303),
+        (78.05657866688904, 21.72372690573995),
+        (75.70190002567679, 21.72372690573995),
+    ]
+)
+poly_b = Polygon(
+    [
+        (77.30739303922036, 20.93443718935589),
+        (77.30739303922036, 18.778554619422025),
+        (80.17952030424942, 18.778554619422025),
+        (80.17952030424942, 20.93443718935589),
+        (77.30739303922036, 20.93443718935589),
+    ]
+)
+merged = poly_a.union(poly_b)
+
+feature = {
+    "type": "Feature",
+    "properties": {"operation": "union", "inputs": ["region_north", "region_south"]},
+    "geometry": mapping(merged),
+}
+print(json.dumps(feature, indent=2, ensure_ascii=False))
+```
+
+**Printed GeoJSON (`Feature`) output — union (sample)**
+
+_Formatted (scroll):_
+
+<div style="max-height:22rem;overflow-y:auto;border:1px solid #ccc;border-radius:6px;padding:0.5rem;margin:0.75rem 0;background:var(--md-code-bg-color, #f4f4f4);">
+
+```json
+{
+  "type": "Feature",
+  "properties": {
+    "operation": "union",
+    "inputs": [
+      "region_north",
+      "region_south"
+    ]
+  },
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [
+      [
+        [
+          75.70190002567679,
+          20.241430489641303
+        ],
+        [
+          75.70190002567679,
+          21.72372690573995
+        ],
+        [
+          78.05657866688904,
+          21.72372690573995
+        ],
+        [
+          78.05657866688904,
+          20.93443718935589
+        ],
+        [
+          80.17952030424942,
+          20.93443718935589
+        ],
+        [
+          80.17952030424942,
+          18.778554619422025
+        ],
+        [
+          77.30739303922036,
+          18.778554619422025
+        ],
+        [
+          77.30739303922036,
+          20.241430489641303
+        ],
+        [
+          75.70190002567679,
+          20.241430489641303
+        ]
+      ]
+    ]
+  }
+}
+```
+
+</div>
+
+**Map preview** — union of region north and region south (single merged outline):
+
+![Union polygon (merged footprint of both regions)](assets/union.png)
+
+For **many features** and **attribute tables**, combine the Shapely ideas above with **GeoPandas** tables: read layers, filter rows, and run spatial operations such as **`sjoin`** and **`overlay`** in the sections that follow.
 
 ## Introduction to GeoPandas
 
-**GeoPandas** extends pandas to work with geospatial data, combining the power of pandas DataFrames with spatial operations.
+### What is GeoPandas?
+
+**GeoPandas** is a Python library used to work with **geospatial data** in a tabular format, similar to Pandas. It extends Pandas by adding support for geometry (points, lines, polygons) and spatial operations like mapping, filtering, and projections. It is widely used in GIS and works with libraries like Shapely.
+
+
+So: **Shapely** = one geometry, many methods; **GeoPandas** = many geometries + attributes + CRS + file read/write + spatial joins and overlays.
 
 ```mermaid
 graph TD
     A[GeoPandas] --> B[Pandas DataFrame]
     A --> C[Spatial Operations]
+    A --> S[Shapely geometries in geometry column]
     B --> D[Data Manipulation]
     B --> E[Statistical Analysis]
     C --> F[Geometric Operations]
     C --> G[Spatial Relationships]
 ```
+
+### GeoPandas basics: read, export, access, update
+
+These patterns are the same ones you will reuse in the rest of this module: **read** a vector file into a **`GeoDataFrame`**, **inspect** rows and columns, **change** attribute values or add columns, and **write** results back to disk.
+
+**Read a file** — `read_file()` accepts a path, URL, or ZIP; set **`layer=`** when the container has more than one table (GeoPackage, FileGDB).
+
+```python
+from pathlib import Path
+import geopandas as gpd
+
+# Example: bundled sample GeoJSON (adjust path if your working directory differs)
+path = Path("assets/examples/example.geojson")
+if not path.exists():
+    path = Path("docs/assets/examples/example.geojson")
+
+gdf = gpd.read_file(path)
+print(gdf.crs)              # CRS when declared in the file (GeoJSON often EPSG:4326)
+print(gdf.shape)            # (number of rows, number of columns)
+print(gdf.geometry.name)    # active geometry column name (usually "geometry")
+```
+
+**Example printed output** (reading [`assets/examples/example.geojson`](assets/examples/example.geojson) from this course):
+
+```text
+EPSG:4326
+(5, 6)
+geometry
+```
+
+So this sample layer has **5 features**, **6 columns** (including `geometry`), WGS 84 coordinates, and the geometry column is named **`geometry`**.
+
+**Access data** — a GeoDataFrame is a **pandas** table plus **`geometry`**: use **`head`**, **`loc`** / **`iloc`**, column names, and boolean filters exactly like a `DataFrame`.
+
+```python
+# First rows and all attribute columns + geometry
+print(gdf.head(3))
+
+# Subset of columns (default .head() shows five rows)
+print(gdf[["name", "geometry"]].head())
+
+# Rows by position or label (use in your own logic; shown here as patterns)
+row0 = gdf.iloc[0]
+subset = gdf.loc[gdf["name"] == "Feature 3"]
+
+# Geometry types and point coordinates (only for Point rows)
+print(gdf.geometry.geom_type.unique())
+pts = gdf[gdf.geometry.geom_type == "Point"]
+print(pts.geometry.x, pts.geometry.y)
+```
+
+**Example printed output** (same `example.geojson` after `read_file` above):
+
+**1 — `print(gdf.head(3))`**
+
+```text
+   id       name category  status  value                                         geometry
+0   1  Feature 1   region  active    100  POLYGON ((77.57767 21.03445, 77.57767 20.62253...
+1   2  Feature 2    route  active    200  LINESTRING (80.65195 23.14701, 80.57995 19.098...
+2   3  Feature 3     site  active    300                          POINT (79.56102 21.59242)
+```
+
+**2 — `print(gdf[["name", "geometry"]].head())`**
+
+```text
+        name                                         geometry
+0  Feature 1  POLYGON ((77.57767 21.03445, 77.57767 20.62253...
+1  Feature 2  LINESTRING (80.65195 23.14701, 80.57995 19.098...
+2  Feature 3                          POINT (79.56102 21.59242)
+3  Feature 4                          POINT (76.26425 19.42733)
+4  Feature 5  POLYGON ((75.52703 23.63438, 74.33056 21.38052...
+```
+
+**3 — `print(gdf.geometry.geom_type.unique())`**
+
+```text
+['Polygon' 'LineString' 'Point']
+```
+
+**4 — `print(pts.geometry.x, pts.geometry.y)`** (only the two **Point** features)
+
+```text
+2    79.561022
+3    76.264254
+dtype: float64 2    21.592421
+3    19.427326
+dtype: float64
+```
+
+The last line is **two Series** printed one after the other (longitude then latitude index `2` and `3` match the original row indices in `gdf`).
+
+**Update data** — assign **new attribute columns** or overwrite cells with pandas syntax; keep the **`geometry`** column valid when you replace geometries.
+
+```python
+# Add / overwrite attribute columns (copy first so you do not mutate a shared view)
+gdf = gdf.copy()
+gdf["source"] = "example.geojson"
+gdf["value_doubled"] = gdf["value"] * 2
+print(gdf)
+
+# Update selected rows (pandas .loc on the attribute column)
+gdf.loc[gdf["status"] == "active", "status"] = "ACTIVE"
+print(gdf)
+```
+
+**Example printed output** (continuing from the same `gdf` loaded earlier):
+
+**1 — After adding `source` and `value_doubled` (`print(gdf)`)**
+
+```text
+   id       name category    status  value                                         geometry           source  value_doubled
+0   1  Feature 1   region    active    100  POLYGON ((77.57767 21.03445, 77.57767 20.62253...  example.geojson            200
+1   2  Feature 2    route    active    200  LINESTRING (80.65195 23.14701, 80.57995 19.098...  example.geojson            400
+2   3  Feature 3     site    active    300                          POINT (79.56102 21.59242)  example.geojson            600
+3   4  Feature 4     site  inactive    400                          POINT (76.26425 19.42733)  example.geojson            800
+4   5  Feature 5   region  inactive    500  POLYGON ((75.52703 23.63438, 74.33056 21.38052...  example.geojson           1000
+```
+
+**2 — After `gdf.loc[gdf["status"] == "active", "status"] = "ACTIVE"` (`print(gdf)`)**
+
+```text
+   id       name category    status  value                                         geometry           source  value_doubled
+0   1  Feature 1   region    ACTIVE    100  POLYGON ((77.57767 21.03445, 77.57767 20.62253...  example.geojson            200
+1   2  Feature 2    route    ACTIVE    200  LINESTRING (80.65195 23.14701, 80.57995 19.098...  example.geojson            400
+2   3  Feature 3     site    ACTIVE    300                          POINT (79.56102 21.59242)  example.geojson            600
+3   4  Feature 4     site  inactive    400                          POINT (76.26425 19.42733)  example.geojson            800
+4   5  Feature 5   region  inactive    500  POLYGON ((75.52703 23.63438, 74.33056 21.38052...  example.geojson           1000
+```
+
+Rows that were **`active`** are now **`ACTIVE`**; **`inactive`** rows are unchanged.
+
+**Export a file** — **`to_file()`** writes GeoPackage, GeoJSON, Shapefile, etc. Pick a **`driver`** when the extension is ambiguous; use **`index=False`**-style options via pandas only for non-spatial exports.
+
+This course ships a **ready-made export** at **[`assets/output/sites_out.geojson`](assets/output/sites_out.geojson)** — it matches the **`gdf`** from the **Update data** step above (`source`, `value_doubled`, `ACTIVE` / `inactive`). Your own `to_file()` run should reproduce the same schema and values.
+
+```python
+out_dir = Path("output")
+out_dir.mkdir(parents=True, exist_ok=True)
+
+# GeoJSON (good for sharing small layers)
+gdf.to_file(out_dir / "sites_out.geojson", driver="GeoJSON")
+```
+**Bundled output file** (result of the export pipeline — download or open in QGIS):
+
+- **[sites_out.geojson](assets/output/sites_out.geojson)**
+
+## Basics assignment: vectors, Shapely, GeoPandas & geojson.io
+
+These **nine tasks** recap this module’s **vector** ideas (points, lines, polygons), **Shapely** constructors and predicates, **GeoPandas** I/O and tables, and working with **GeoJSON** files. Complete them in order where it helps; each should take a short notebook or script. (CRS **reprojection** is covered later in this chapter; this assignment stays in **lon/lat** unless your instructor says otherwise.)
+
+Use **[geojson.io](https://geojson.io/)** to sketch geometries on a map: draw on the map, edit the JSON on the right, then **Save** (menu) or copy the **FeatureCollection** into a `.geojson` file. geojson.io uses **WGS 84 (lon/lat)**; when you build a `GeoDataFrame` by hand, set **`crs="EPSG:4326"`** so it matches.
+
+!!! tip "geojson.io workflow"
+    - Draw with the point / line / polygon tools, then click features to edit **properties** (add fields like `name`, `id`, `population`).
+    - **Save → GeoJSON** downloads a file you can open with **`gpd.read_file("your_file.geojson")`**.
+    - If the site shows only a **Feature**, wrap it in a **`FeatureCollection`** or save as-is; GeoPandas can read either when GDAL accepts it.
+
+1. **Create and download a point** — In geojson.io, place one **Point**, set a property **`name`**. Download/save as `my_place.geojson`. Load with GeoPandas, **`print(gdf.crs)`**, **`print(gdf.head())`**, and confirm **`geom_type`** is `Point`.
+
+2. **LineString length** — Draw a **LineString** with at least **three** vertices crossing a path you care about (e.g. a trail idea). Export, load in Python, print **`gdf.geometry.iloc[0].length`** (degrees) and **`gdf.total_bounds`**. In one sentence, say why length is **not** metres yet.
+
+3. **Polygon area and centroid** — Draw one **Polygon** (closed region). Export, load, print **`.area`** and **`.centroid`** for that geometry. Note: in **EPSG:4326**, area is in **degree²**—fine for practice, not for official hectares.
+
+4. **Shapely buffer** — Load your polygon from (3) as a **Shapely** geometry (e.g. `gdf.geometry.iloc[0]`), build **`buffered = geom.buffer(0.05)`** (same units as coordinates), wrap as a **`Feature`** with **`shapely.geometry.mapping`**, and **`json.dumps`** or write a small GeoJSON file. Optional: open the result in geojson.io.
+
+5. **Intersection** — In geojson.io create **two overlapping polygons** (or one polygon + one box). Export as one FeatureCollection. In Python, split into two GeoDataFrames (one row each) and run **`gpd.overlay(..., how="intersection")`**, or use **`.intersection()`** on two Shapely geometries. Paste or describe the **overlap** geometry type you get.
+
+6. **Attributes: add and export** — Load any geojson.io export. Add columns **`source`** = `"geojson.io"` and **`student_id`** (string). Save with **`gdf.to_file("edited_lab.geojson", driver="GeoJSON")`**. Re-read the file and assert row count matches.
+
+7. **Filter by attribute** — Give at least two features a numeric property (e.g. **`priority`**). In Python, keep only rows with **`priority >= 2`**. Print the result and the number of rows.
+
+8. **Point in polygon** — Draw one **polygon** and one **point inside** it in geojson.io (same file). Load, pick the point and polygon rows, and evaluate **`point_geom.within(polygon_geom)`** (Shapely) **or** **`gpd.sjoin(..., predicate="within")`**. Report `True` / `False` or the join row count.
+
+9. **Pure-Python FeatureCollection** — Without geojson.io, build **three** Shapely objects (`Point`, `LineString`, `Polygon`), assemble a **`GeoDataFrame`** with a **`label`** column, set **`crs="EPSG:4326"`**, and **`to_file("built_in_python.geojson", driver="GeoJSON")`**. Open **`built_in_python.geojson`** in geojson.io to visually check.
+
+Submit your **`.geojson` files**, a single **`.py` or `.ipynb`**, and short answers for any “explain” prompts your instructor assigns.
+
+---
+
+## Advanced GeoPandas workflows
+
+The sections below use **larger teaching datasets** (for example Natural Earth) and go deeper into **CRS**, **spatial operations**, **joins**, and **writing results**. Complete the **Basics assignment** first if you want the geojson.io + Shapely + small-table workflow fresh before scaling up.
 
 ## Setting Up the Environment
 
@@ -897,6 +1547,17 @@ Create a comprehensive analysis combining multiple operations:
 ```mermaid
 mindmap
   root((Vector Analysis))
+    Vector data
+      Points Lines Polygons
+      Multi types
+      Features plus attributes
+    Vector files
+      GPKG GeoJSON SHP
+      Parquet FGB KML
+      GDB SQLite PostGIS
+    Shapely
+      Buffer union intersect
+      within intersects contains
     GeoDataFrames
       Geometry Column
       Spatial Operations
@@ -915,7 +1576,10 @@ mindmap
 ```
 
 !!! success "What You've Learned"
-    - **GeoDataFrames**: The foundation of spatial data analysis in Python
+    - **Vector data**: Discrete geometries + attributes; types from Point through MultiPolygon and GeometryCollection
+    - **File formats**: GeoPackage, GeoJSON, Shapefile, GeoParquet, KML/KMZ, FileGDB, and others via GDAL
+    - **Shapely**: Point/Line/Polygon objects; buffer, union, intersection, spatial predicates
+    - **GeoDataFrames**: Tables of Shapely geometries + CRS + I/O; spatial join and overlay
     - **Spatial Operations**: Buffers, intersections, and spatial relationships
     - **Attribute Filtering**: Query data based on properties
     - **CRS Management**: Transform data for accurate analysis

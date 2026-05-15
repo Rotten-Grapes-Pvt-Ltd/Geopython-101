@@ -12,6 +12,372 @@ icon: material/chart-line
 - Add popups and interactive elements
 - Export and print maps
 
+## Matplotlib
+
+**Matplotlib** is Python’s most widely used library for **drawing charts and maps as static pictures**—line graphs, scatter plots, histograms, bar charts, and (with a little help from **GeoPandas**) **maps** with coastlines, regions, and points.
+
+Think of it in three plain ideas:
+
+1. **Figure and axes** — You usually start with **`fig, ax = plt.subplots(...)`**. The **figure** is the whole canvas (the window or image file). The **axes** (`ax`) is the drawing area where you plot: titles, labels, limits, and the actual geometry all attach to **`ax`**.
+2. **`pyplot` (`plt`)** — The **`matplotlib.pyplot`** module is the **simple, step-by-step** interface you’ll see in tutorials: **`plt.plot`**, **`plt.show`**, **`plt.savefig`**. Under the hood it still uses figures and axes; **`plt.subplots`** is just a convenient way to create them.
+3. **Static output** — Matplotlib is built for **non-interactive** figures: you run code, get an image (on screen or PNG/PDF). For **pan/zoom maps in the browser**, use **Leafmap** (**§ 2. Leafmap** below); Matplotlib stays the workhorse for **publication-style** and **notebook** maps.
+
+You do **not** need to memorize every function at once. The patterns in this module—**`plot`**, **`scatter`**, **colors**, **legends**, **`GeoDataFrame.plot(ax=...)`**—repeat across most geospatial visualization workflows.
+
+Install the libraries used in the **Matplotlib** examples below (terminal, or a notebook cell with **`!pip`**):
+
+```bash
+pip install matplotlib
+pip install numpy
+pip install rasterio
+```
+
+Below are **small Matplotlib + rasterio recipes** for a single-band GeoTIFF (paths point at the bundled **`/content/Tiff_1.tif`**; change **`path`** if your file lives elsewhere). Each block is meant to copy into a notebook as a starting point.
+
+### Display raster image
+
+**`imshow`** draws the 2D array as a grid of colored cells. Pass **`extent=[left, right, bottom, top]`** from **`src.bounds`** so the image lines up with map coordinates (here **lon/lat** for **EPSG:4326**). **`origin="upper"`** matches typical raster row order (north at the top).
+
+```python
+import matplotlib.pyplot as plt
+import rasterio
+
+path = "/content/Tiff_1.tif"
+with rasterio.open(path) as src:
+    band = src.read(1)
+    bounds = src.bounds  # left, bottom, right, top
+
+extent = [bounds.left, bounds.right, bounds.bottom, bounds.top]
+fig, ax = plt.subplots(figsize=(8, 6))
+ax.imshow(band, cmap="gray", extent=extent, origin="upper")
+ax.set_xlabel("Longitude")
+ax.set_ylabel("Latitude")
+ax.set_title("Raster band 1")
+plt.tight_layout()
+plt.show()
+```
+
+**Example output:**
+
+![Display raster image — example output](assets/Display_raster_image.png)
+
+### Apply colormap
+
+A **colormap** maps numeric cell values to colors. **`cmap`** picks the palette (try **`terrain`**, **`viridis`**, **`RdYlGn`**). Add **`plt.colorbar`** so readers can relate color to value; use **`vmin` / `vmax`** to stretch contrast when needed.
+
+```python
+import matplotlib.pyplot as plt
+import rasterio
+
+path = "/content/Tiff_1.tif"
+with rasterio.open(path) as src:
+    band = src.read(1).astype(float)
+    b = src.bounds
+    extent = [b.left, b.right, b.bottom, b.top]
+
+fig, ax = plt.subplots(figsize=(8, 6))
+im = ax.imshow(band, cmap="terrain", extent=extent, origin="upper")
+plt.colorbar(im, ax=ax, label="Pixel value")
+ax.set_title("Raster with colormap")
+plt.tight_layout()
+plt.show()
+```
+
+**Example output:**
+
+![Raster with colormap — example output](assets/apply_colormap.png)
+
+### Histogram (pixel distribution)
+
+A **histogram** counts how many pixels fall into value bins. It summarizes the whole band (distribution, skew, outliers). Use **`flatten()`** on the 2D array; **`np.nanpercentile`** helps choose **`range=(lo, hi)`** so a few extreme pixels do not squash the bars.
+
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+import rasterio
+
+path = "/content/Tiff_1.tif"
+with rasterio.open(path) as src:
+    arr = src.read(1).astype(float)
+
+lo, hi = np.nanpercentile(arr, [2, 98])
+fig, ax = plt.subplots(figsize=(8, 4))
+ax.hist(arr.flatten(), bins=80, range=(lo, hi), color="steelblue", edgecolor="white", linewidth=0.3)
+ax.set_xlabel("Pixel value")
+ax.set_ylabel("Count")
+ax.set_title("Histogram of band 1")
+plt.tight_layout()
+plt.show()
+```
+
+**Example output:**
+
+![Histogram of band 1 — example output](assets/Histogram.png)
+
+### Remove NoData / black pixels
+
+Rasters often mark missing cells with a **NoData** sentinel or they appear as a flat **black** edge. For plotting, replace those values with **`np.nan`** so **`imshow`** does not paint them, or mask them before **`hist`**. Always read **`src.nodata`** from the file when it is set.
+
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+import rasterio
+
+path = "/content/Tiff_1.tif"
+with rasterio.open(path) as src:
+    band = src.read(1).astype(float)
+    nd = src.nodata
+    b = src.bounds
+    extent = [b.left, b.right, b.bottom, b.top]
+
+if nd is not None:
+    band = np.where(band == nd, np.nan, band)
+
+fig, ax = plt.subplots(figsize=(8, 6))
+ax.imshow(band, cmap="viridis", extent=extent, origin="upper")
+ax.set_title("Raster with NoData hidden (NaN)")
+plt.tight_layout()
+plt.show()
+```
+
+**Example output:**
+
+![Raster with NoData hidden — example output](assets/Remove_NoData.png)
+
+### Zoom / crop view
+
+**Zooming** only changes what Matplotlib shows: call **`set_xlim`** and **`set_ylim`** on the same full raster. **Cropping** loads a smaller **window** with **`from_bounds`**, which saves memory on large GeoTIFFs. Use **`plotting_extent`** so **`imshow`**’s **`extent`** matches the window’s georeferencing.
+
+```python
+import matplotlib.pyplot as plt
+import rasterio
+from rasterio.mask import mask
+import json
+
+path = "/content/Tiff_1.tif"
+
+# Your GeoJSON polygon
+geojson = {
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "coordinates": [[
+          [73.66053541139414, 20.069929645956293],
+          [73.66053541139414, 20.039907375765722],
+          [73.71140637660173, 20.039907375765722],
+          [73.71140637660173, 20.069929645956293],
+          [73.66053541139414, 20.069929645956293]
+        ]],
+        "type": "Polygon"
+      }
+    }
+  ]
+}
+
+# Extract geometry
+shapes = [feature["geometry"] for feature in geojson["features"]]
+
+with rasterio.open(path) as src:
+    cropped, transform = mask(src, shapes, crop=True)
+
+# Plot
+plt.figure(figsize=(8, 6))
+plt.imshow(cropped[0], cmap="terrain")
+plt.title("Cropped TIFF using GeoJSON")
+plt.axis("off")
+plt.show()
+```
+
+**Example output:**
+
+![Cropped view — example output](assets/zoom_crop_view.png)
+
+### Multiple subplots
+
+**`plt.subplots(nrows, ncols)`** returns a grid of axes so you can compare **the same band** with different **cmaps**, or **histogram + map**, side by side. Keep **`extent`** consistent across map panels so geography aligns.
+
+```python
+import matplotlib.pyplot as plt
+import numpy as np
+import rasterio
+
+path = "/content/Tiff_1.tif"
+with rasterio.open(path) as src:
+    band = src.read(1).astype(float)
+    b = src.bounds
+    extent = [b.left, b.right, b.bottom, b.top]
+
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+im0 = axes[0].imshow(band, cmap="terrain", extent=extent, origin="upper")
+axes[0].set_title("terrain")
+plt.colorbar(im0, ax=axes[0], fraction=0.046)
+
+im1 = axes[1].imshow(band, cmap="magma", extent=extent, origin="upper")
+axes[1].set_title("magma")
+plt.colorbar(im1, ax=axes[1], fraction=0.046)
+
+plt.suptitle("Same raster, two colormaps")
+plt.tight_layout()
+plt.show()
+```
+
+**Example output:**
+
+![Same raster with two colormaps — example output](assets/same_raster_two_colormap.png)
+
+## 2. Leafmap
+
+**Leafmap** is a Python library for **interactive maps** in notebooks (Jupyter, Colab, VS Code). It sits on top of **ipyleaflet** and **folium** (depending on backend) and talks to **Leaflet** in the browser: you get **pan, zoom, layer toggles, and popups** without building JavaScript yourself. Use it when you want to **explore** data on a basemap, **compare** layers, or **share** a map as HTML—after **Matplotlib** or **GeoPandas** when you need a **live** map rather than a static figure.
+
+Paths below use **`assets/...`** as in this repo; on Colab, point at **`/content/...`** instead. End a cell with **`m`** to display the widget (or use your environment’s equivalent).
+
+Install **Leafmap** and, if you use **`add_raster`** on local GeoTIFFs, **`localtileserver`** (see the raster subsection below):
+
+```bash
+pip install leafmap
+pip install localtileserver
+```
+
+### Create map
+
+A **`leafmap.Map`** is the canvas: **`center=[latitude, longitude]`** (lat first) and **`zoom`** set the initial view; **`height`** sizes the widget in the notebook.
+
+```python
+import leafmap
+
+m = leafmap.Map(center=[20.07, 73.70], zoom=11, height="520px")
+m
+```
+
+### Add basemap
+
+**`add_basemap`** stacks a **named tile layer** (streets, imagery, terrain). Discover names with **`leafmap.basemaps.keys()`**. Add **`add_layer_control()`** so readers can turn layers on or off.
+
+```python
+import leafmap
+
+m = leafmap.Map(center=[20.07, 73.70], zoom=10)
+m.add_basemap("Esri.WorldImagery")
+m.add_basemap("OpenTopoMap")
+m.add_layer_control()
+m
+```
+
+**Example output:**
+
+![Leafmap — basemaps and layer control](assets/base_map_Added.png)
+
+### Add marker
+
+**`add_markers`** drops one or more **pin or circle** markers at **`[lat, lon]`** positions (a list of lists for many points). Use **`shape`**, **`color`**, and **`popup`** arguments to customize when your leafmap version supports them.
+
+```python
+import leafmap
+
+m = leafmap.Map(center=[20.07, 73.70], zoom=11)
+m.add_markers(markers=[[20.07, 73.70]], shape="marker")
+m
+```
+
+**Example output:**
+
+![Leafmap — marker added](assets/leafmap_point_Added.png)
+
+### Add GeoJSON
+
+**`add_geojson`** loads **vector features** from a **URL or file path**. Set **`layer_name`** for the layer list; optional styling arguments depend on your **leafmap** version (see [add vector](https://leafmap.org/notebooks/10_add_vector/)).
+
+```python
+import leafmap
+
+m = leafmap.Map(center=[20, 78], zoom=5, height="520px")
+
+# GeoJSON as Python dict
+geojson_data = {
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {"name": "My Area"},
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[
+                    [73.71, 20.09],
+                    [73.69, 20.07],
+                    [73.72, 20.06],
+                    [73.73, 20.08],
+                    [73.71, 20.09]
+                ]]
+            }
+        }
+    ]
+}
+
+# Add directly (no file needed)
+m.add_geojson(geojson_data, layer_name="GeoJSON Area")
+
+m.add_layer_control()
+m
+```
+
+**Example output:**
+
+![Leafmap — GeoJSON on map](assets/leafmap_geojson.png)
+
+### Export map
+
+**`to_html`** writes a **standalone HTML** file you can open in a browser or host on the web. Build the map first, then export; very heavy layers can make large files.
+
+```python
+import leafmap.foliumap as leafmap   # ✅ use folium backend
+
+m = leafmap.Map(center=[20.07, 73.70], zoom=10)
+m.add_basemap("CartoDB.Positron")
+
+# ✅ correct method
+m.add_marker(location=[20.07, 73.70])
+
+m.to_html("leafmap_export.html")
+
+print("Saved leafmap_export.html")
+```
+
+## Basics assignment: Matplotlib & Leafmap
+
+These tasks recap the **core visualization patterns** in this module: make a clear static figure with **Matplotlib**, then build an interactive map with **Leafmap**. Use the bundled raster **`assets/tiff/Tiff_1.tif`** (and the example screenshots in **`docs/assets/`**) to keep the setup simple.
+
+!!! tip "Where to run these"
+    - In notebooks, end a Leafmap cell with **`m`** to display the map widget.
+    - If you run in **Colab**, your files may live under **`/content/`** instead of **`assets/`**.
+
+1. **Display a raster** — Use `rasterio.open(...)` + `imshow` to display **band 1** of **`assets/tiff/Tiff_1.tif`** with an `extent` from `src.bounds`.
+
+2. **Colormap + legend** — Re-plot the same band with a different `cmap` (e.g. `terrain`) and add a `colorbar`.
+
+3. **Histogram** — Plot the pixel distribution (ignore NoData if present). Write one sentence describing what the histogram shape suggests (e.g. many mid-values vs many extremes).
+
+4. **Mask NoData** — Convert `src.nodata` values to `np.nan` and confirm your map no longer paints those pixels.
+
+5. **Crop a view** — Read a window with `from_bounds(...)` and plot only that area (a “zoomed-in” raster view).
+
+6. **Leafmap basemap** — Create `leafmap.Map(...)`, add at least one basemap, and enable `add_layer_control()`.
+
+7. **Leafmap marker** — Add a marker near your raster extent (or any location you choose) and confirm it appears at the right place.
+
+8. **Leafmap GeoJSON** — Add GeoJSON (either the inline `geojson_data` example from this module or `assets/examples/example.geojson`) and toggle it on/off in the layer control.
+
+9. **Export** — Save your final Leafmap view as HTML using `to_html("my_map.html")` and open the file in a browser.
+
+Submit your notebook (`.ipynb`) or script (`.py`) plus any exported HTML files your instructor requests.
+
+
+#
+#
+# Advance
+
 ## Setting Up the Environment
 
 ```python
@@ -144,32 +510,6 @@ ax.set_ylim(35, 75)
 
 plt.tight_layout()
 plt.show()
-```
-
-## 2. Introduction to Leafmap
-
-### What is Leafmap?
-
-**Leafmap** is a Python package for interactive mapping and geospatial analysis built on top of ipyleaflet and folium. It provides an easy-to-use interface for creating interactive maps.
-
-```python
-# Create a basic leafmap
-m = leafmap.Map(center=[20, 0], zoom=2)
-m
-```
-
-### Basic Map Creation
-
-```python
-# Create map with custom settings
-m = leafmap.Map(
-    center=[40, -100],  # [latitude, longitude]
-    zoom=4,
-    height='600px'
-)
-
-# Display the map
-m
 ```
 
 ## 3. Changing Basemaps

@@ -1,0 +1,106 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 1,
+        "name": "Feature 1",
+        "category": "region",
+        "status": "ACTIVE",
+        "value": 100,
+        "source": "example.geojson",
+        "value_doubled": 200
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [77.5776731609584, 21.034449735534366],
+            [77.5776731609584, 20.62253336365508],
+            [78.53820018707307, 20.62253336365508],
+            [78.53820018707307, 21.034449735534366],
+            [77.5776731609584, 21.034449735534366]
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 2,
+        "name": "Feature 2",
+        "category": "route",
+        "status": "ACTIVE",
+        "value": 200,
+        "source": "example.geojson",
+        "value_doubled": 400
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [80.6519460059335, 23.147011802917902],
+          [80.57994542562528, 19.098397546355457],
+          [77.73562368462683, 19.098687268008177],
+          [77.47462605513692, 14.508493936458507]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 3,
+        "name": "Feature 3",
+        "category": "site",
+        "status": "ACTIVE",
+        "value": 300,
+        "source": "example.geojson",
+        "value_doubled": 600
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [79.56102228049235, 21.592420713791824]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 4,
+        "name": "Feature 4",
+        "category": "site",
+        "status": "inactive",
+        "value": 400,
+        "source": "example.geojson",
+        "value_doubled": 800
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [76.26425407623753, 19.42732611512747]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": 5,
+        "name": "Feature 5",
+        "category": "region",
+        "status": "inactive",
+        "value": 500,
+        "source": "example.geojson",
+        "value_doubled": 1000
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [75.5270294457045, 23.634381069586027],
+            [74.3305599758977, 21.38052009369494],
+            [75.87417607860189, 21.01231813767005],
+            [77.02450906340755, 22.329365649754678],
+            [75.5270294457045, 23.634381069586027]
+          ]
+        ]
+      }
+    }
+  ]
+}
