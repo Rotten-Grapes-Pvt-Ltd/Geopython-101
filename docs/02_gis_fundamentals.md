@@ -247,6 +247,87 @@ Do **not** paste lon/lat into a layer declared as a **meter** CRS without a prop
 | **Web Mercator** | 3857 | x/y meters (web tiling) | Basemaps, slippy maps |
 | **UTM** | Zone codes (e.g. 32610) | Metric bands | Local mapping, engineering |
 
+# Basic Assignments
+
+## 1. City Population Analyzer
+- Create a dictionary of cities with population and area
+- Calculate population density using functions
+- Find highest density city
+- Export results to CSV using pandas
+
+---
+
+## 2. GeoJSON Feature Creator
+- Create Point, LineString, and Polygon GeoJSON objects
+- Store feature properties in dictionaries
+- Print geometry types and coordinates
+- Save GeoJSON data into a text file
+
+---
+
+## 3. Weather Data Processing
+- Read temperature data from CSV using pandas
+- Handle missing values
+- Convert Celsius to Fahrenheit
+- Find hottest and coldest days using loops
+
+---
+
+## 4. CRS Information Tool
+- Create a dictionary of EPSG codes
+- Compare Geographic CRS and Projected CRS
+- Take user input for EPSG code
+- Print CRS details using conditionals
+
+---
+
+## 5. Raster Metadata Simulator
+- Create raster metadata dictionary
+- Store width, height, bands, CRS, datatype
+- Calculate total pixels using NumPy
+- Identify raster type: continuous or categorical
+
+---
+
+## 6. File Handling and Coordinate Reader
+- Create a text file containing city coordinates
+- Read file using `with open()`
+- Use `pathlib` for file paths
+- Print formatted coordinate information
+
+---
+
+## 7. GIS Data Type Classifier
+- Ask user for GIS data type
+- Identify vector or raster data
+- Print suitable use cases
+- Use `if`, `elif`, and loops
+
+---
+
+## 8. NumPy Coordinate Calculator
+- Store coordinates in NumPy arrays
+- Calculate distance from origin
+- Find minimum and maximum distances
+- Perform vectorized calculations
+
+---
+
+## 9. Country Data Analysis using pandas
+- Create DataFrame with country population, area, and GDP
+- Calculate population density and GDP per capita
+- Sort countries by GDP per capita
+- Export final results to CSV
+
+---
+
+## 10. Mini GIS Explorer Project
+- Read city data from CSV
+- Store coordinates and attributes
+- Create GeoJSON output
+- Analyze data using pandas and NumPy
+- Display CRS information for the dataset
+<!-- 
 ## Loading and Inspecting Vector Data
 
 Let's work with real geographic data:
@@ -555,7 +636,7 @@ mindmap
     - Use appropriate projections for your analysis area
     - Inspect data structure before analysis
     - Visualize data early to catch issues
-    - Keep original and transformed versions separate
+    - Keep original and transformed versions separate -->
 
 ## Next Steps
 
