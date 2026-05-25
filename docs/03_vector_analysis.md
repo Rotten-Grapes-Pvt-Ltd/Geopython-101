@@ -3721,6 +3721,7 @@ for idx, row in states_proj.iterrows():
 
 print(f"States intersecting MP 100 km buffer ({len(intersecting_states)}):")
 print(intersecting_states)
+```
 
 Understanding spatial relationships is crucial for geospatial analysis. Here's a comprehensive guide to spatial predicates and their use cases:
 
@@ -3753,7 +3754,7 @@ print(city_country_check.head(10))
 #     columns={'NAME': 'country'}
 # )
 # Count cities per country
-cities_per_country = city_country_check['NAME'].value_counts()
+cities_per_country = city_country_check["NAME"].value_counts()
 print(f"\nTop 10 countries by number of major cities:")
 print(cities_per_country.head(10))
 
@@ -3765,9 +3766,9 @@ states_with_country = gpd.sjoin(
     predicate='within'
 )
 
-for country, group in states_with_country.groupby('NAME'):
+for country, group in states_with_country.groupby("NAME"):
     print(f"\n🌍 Country: {country}")
-    print(group['name'].tolist())
+    print(group["name"].tolist())
 ```
 
 ## 6. Geometric Calculations
