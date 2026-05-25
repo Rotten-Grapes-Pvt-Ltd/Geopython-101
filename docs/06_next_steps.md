@@ -869,7 +869,7 @@ def parallel_raster_processing():
 - [Streamlit Documentation](https://docs.streamlit.io/)
 
 ### Communities & Forums 👥
-- **Stack Overflow**: [gis] and [python] tags
+- **Stack Overflow**: `gis` and `python` tags
 - **Reddit**: r/gis, r/Python, r/datascience
 - **GitHub**: Explore geospatial Python repositories
 - **Twitter**: Follow #geospacial, #python, #datascience hashtags

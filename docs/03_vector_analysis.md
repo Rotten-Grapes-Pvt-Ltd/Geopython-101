@@ -86,29 +86,1205 @@ Usually also **`.prj`** (CRS) and often **`.cpg`** (text encoding, e.g. UTF-8). 
 **Shapely** gives you **`Point`**, **`LineString`**, **`Polygon`**, and **multi** variants as plain Python objects. You construct coordinates, then call methods such as **`.buffer()`**, **`.union()`**, **`.intersection()`**, and **predicates** like **`.within()`** and **`.intersects()`**. Shapely does **not** attach attribute tables—that is what **GeoPandas** adds—but every geometry stored in a GeoDataFrame’s `geometry` column **is a Shapely object**.
 
 
+It helps us:
 
+- create **points, lines, and polygons**
+- measure **distance, length, and area**
+- check **spatial relationships**
+- perform **buffer, intersection, union, and split operations**
+
+Shapely works with geometry only.
+
+It does **not** manage attribute tables or read GIS files.
+
+---
+
+### 1 — Import Shapely
+
+```python
+# Core geometry types and helpers
+from shapely.geometry import Point, LineString, Polygon, mapping
+from shapely.ops import unary_union, split
+
+# mapping(geom) → GeoJSON-like dict for export or printing
+```
+
+---
+
+### 2 — Create points
+
+```python
+# School site: (longitude, latitude)
+school = Point(79.12, 22.15)
+
+print(school.geom_type)   # Point
+print(school.x, school.y) # 79.12 22.15
+print(school.wkt)         # POINT (79.12 22.15)
+```
+
+Output:
+
+```text
+Point
+79.12 22.15
+POINT (79.12 22.15)
+```
+
+---
+
+### 3 — Create lines
+
+```python
+# Road or river reach as ordered vertices
+road = LineString([
+    (79.05, 22.10),
+    (79.15, 22.12),
+    (79.25, 22.14),
+])
+
+print(road.geom_type)
+print(road.length)
+print(len(road.coords))
+```
+
+Output:
+
+```text
+LineString
+0.204
+3
+```
+
+### 4 — Create polygons
+
+```python
+# Village boundary
+village = Polygon([
+    (79.10, 22.13),
+    (79.14, 22.13),
+    (79.14, 22.17),
+    (79.10, 22.17),
+    (79.10, 22.13),
+])
+
+# Nearby lake
+lake = Polygon([
+    (79.12, 22.11),
+    (79.14, 22.11),
+    (79.14, 22.13),
+    (79.12, 22.13),
+    (79.12, 22.11),
+])
+
+print(village.geom_type)
+print(village.area)
+print(village.centroid)
+```
+
+Output:
+
+```text
+Polygon
+0.0016
+POINT (79.12 22.15)
+```
+
+---
+
+### 5 — Bounds and centroid
+
+Get geometry extent and center.
+
+```python
+print(village.bounds)
+
+center = village.centroid
+
+print(center)
+print(center.x, center.y)
+```
+
+Output:
+
+```text
+(79.10, 22.13, 79.14, 22.17)
+POINT (79.12 22.15)
+79.12 22.15
+```
+
+Use case:
+
+- map extent
+- zoom to feature
+- center label
+
+---
+
+### 6 — Distance between features
+
+```python
+print(school.distance(lake))
+```
+
+Output:
+
+```text
+0.02
+```
+
+> Distance uses coordinate units.  
+> In EPSG:4326 this value is in degrees.
+
+---
+
+### 7 — Spatial relationships
+
+Check how features relate.
+
+```python
+print(village.contains(school))
+print(school.within(village))
+print(village.intersects(lake))
+print(village.touches(lake))
+```
+
+Output:
+
+```text
+True
+True
+True
+False
+```
+
+Useful for:
+
+- schools inside villages
+- roads touching parcels
+- lakes intersecting boundaries
+
+---
+
+### 8 — Convert to GeoJSON-style dictionary
+
+Useful for exporting.
+
+```python
+geojson_data = mapping(village)
+
+print(geojson_data["type"])
+print(geojson_data["coordinates"])
+```
+
+Output:
+
+```text
+Polygon
+(((79.10, 22.13), ...))
+```
+
+
+## Introduction to GeoPandas
+
+### What is GeoPandas?
+
+**GeoPandas** is a Python library used to work with **geospatial data** in a tabular format, similar to Pandas. It extends Pandas by adding support for geometry (points, lines, polygons) and spatial operations like mapping, filtering, and projections. It is widely used in GIS and works with libraries like Shapely.
+
+
+So: **Shapely** = one geometry, many methods; **GeoPandas** = many geometries + attributes + CRS + file read/write + spatial joins and overlays.
+
+```mermaid
+graph TD
+    A[GeoPandas] --> B[Pandas DataFrame]
+    A --> C[Spatial Operations]
+    A --> S[Shapely geometries in geometry column]
+    B --> D[Data Manipulation]
+    B --> E[Statistical Analysis]
+    C --> F[Geometric Operations]
+    C --> G[Spatial Relationships]
+```
+
+### GeoPandas basics: read, export, access, update
+
+These patterns are the same ones you will reuse in the rest of this module: **read** a vector file into a **`GeoDataFrame`**, **inspect** rows and columns, **change** attribute values or add columns, and **write** results back to disk.
+
+**Read a file** — `read_file()` accepts a path, URL, or ZIP; set **`layer=`** when the container has more than one table (GeoPackage, FileGDB).
+
+```python
+from pathlib import Path
+import geopandas as gpd
+
+# Example: bundled sample GeoJSON (adjust path if your working directory differs)
+path = Path("assets/examples/example.geojson")
+if not path.exists():
+    path = Path("docs/assets/examples/example.geojson")
+
+gdf = gpd.read_file(path)
+print(gdf.crs)              # CRS when declared in the file (GeoJSON often EPSG:4326)
+print(gdf.shape)            # (number of rows, number of columns)
+print(gdf.geometry.name)    # active geometry column name (usually "geometry")
+```
+
+**Example printed output** (reading [`assets/examples/example.geojson`](assets/examples/example.geojson) from this course):
+
+```text
+EPSG:4326
+(5, 6)
+geometry
+```
+
+So this sample layer has **5 features**, **6 columns** (including `geometry`), WGS 84 coordinates, and the geometry column is named **`geometry`**.
+
+**Access data** — a GeoDataFrame is a **pandas** table plus **`geometry`**: use **`head`**, **`loc`** / **`iloc`**, column names, and boolean filters exactly like a `DataFrame`.
+
+```python
+# First rows and all attribute columns + geometry
+print(gdf.head(3))
+
+# Subset of columns (default .head() shows five rows)
+print(gdf[["name", "geometry"]].head())
+
+# Rows by position or label (use in your own logic; shown here as patterns)
+row0 = gdf.iloc[0]
+subset = gdf.loc[gdf["name"] == "Feature 3"]
+
+# Geometry types and point coordinates (only for Point rows)
+print(gdf.geometry.geom_type.unique())
+pts = gdf[gdf.geometry.geom_type == "Point"]
+print(pts.geometry.x, pts.geometry.y)
+```
+
+**Example printed output** (same `example.geojson` after `read_file` above):
+
+**1 — `print(gdf.head(3))`**
+
+```text
+   id       name category  status  value                                         geometry
+0   1  Feature 1   region  active    100  POLYGON ((77.57767 21.03445, 77.57767 20.62253...
+1   2  Feature 2    route  active    200  LINESTRING (80.65195 23.14701, 80.57995 19.098...
+2   3  Feature 3     site  active    300                          POINT (79.56102 21.59242)
+```
+
+**2 — `print(gdf[["name", "geometry"]].head())`**
+
+```text
+        name                                         geometry
+0  Feature 1  POLYGON ((77.57767 21.03445, 77.57767 20.62253...
+1  Feature 2  LINESTRING (80.65195 23.14701, 80.57995 19.098...
+2  Feature 3                          POINT (79.56102 21.59242)
+3  Feature 4                          POINT (76.26425 19.42733)
+4  Feature 5  POLYGON ((75.52703 23.63438, 74.33056 21.38052...
+```
+
+**3 — `print(gdf.geometry.geom_type.unique())`**
+
+```text
+['Polygon' 'LineString' 'Point']
+```
+
+**4 — `print(pts.geometry.x, pts.geometry.y)`** (only the two **Point** features)
+
+```text
+2    79.561022
+3    76.264254
+dtype: float64 2    21.592421
+3    19.427326
+dtype: float64
+```
+
+The last line is **two Series** printed one after the other (longitude then latitude index `2` and `3` match the original row indices in `gdf`).
+
+**Update data** — assign **new attribute columns** or overwrite cells with pandas syntax; keep the **`geometry`** column valid when you replace geometries.
+
+```python
+# Add / overwrite attribute columns (copy first so you do not mutate a shared view)
+gdf = gdf.copy()
+gdf["source"] = "example.geojson"
+gdf["value_doubled"] = gdf["value"] * 2
+print(gdf)
+
+# Update selected rows (pandas .loc on the attribute column)
+gdf.loc[gdf["status"] == "active", "status"] = "ACTIVE"
+print(gdf)
+```
+
+**Example printed output** (continuing from the same `gdf` loaded earlier):
+
+**1 — After adding `source` and `value_doubled` (`print(gdf)`)**
+
+```text
+   id       name category    status  value                                         geometry           source  value_doubled
+0   1  Feature 1   region    active    100  POLYGON ((77.57767 21.03445, 77.57767 20.62253...  example.geojson            200
+1   2  Feature 2    route    active    200  LINESTRING (80.65195 23.14701, 80.57995 19.098...  example.geojson            400
+2   3  Feature 3     site    active    300                          POINT (79.56102 21.59242)  example.geojson            600
+3   4  Feature 4     site  inactive    400                          POINT (76.26425 19.42733)  example.geojson            800
+4   5  Feature 5   region  inactive    500  POLYGON ((75.52703 23.63438, 74.33056 21.38052...  example.geojson           1000
+```
+
+**2 — After `gdf.loc[gdf["status"] == "active", "status"] = "ACTIVE"` (`print(gdf)`)**
+
+```text
+   id       name category    status  value                                         geometry           source  value_doubled
+0   1  Feature 1   region    ACTIVE    100  POLYGON ((77.57767 21.03445, 77.57767 20.62253...  example.geojson            200
+1   2  Feature 2    route    ACTIVE    200  LINESTRING (80.65195 23.14701, 80.57995 19.098...  example.geojson            400
+2   3  Feature 3     site    ACTIVE    300                          POINT (79.56102 21.59242)  example.geojson            600
+3   4  Feature 4     site  inactive    400                          POINT (76.26425 19.42733)  example.geojson            800
+4   5  Feature 5   region  inactive    500  POLYGON ((75.52703 23.63438, 74.33056 21.38052...  example.geojson           1000
+```
+
+Rows that were **`active`** are now **`ACTIVE`**; **`inactive`** rows are unchanged.
+
+**Export a file** — **`to_file()`** writes GeoPackage, GeoJSON, Shapefile, etc. Pick a **`driver`** when the extension is ambiguous; use **`index=False`**-style options via pandas only for non-spatial exports.
+
+This course ships a **ready-made export** at **[`assets/output/sites_out.geojson`](assets/output/sites_out.geojson)** — it matches the **`gdf`** from the **Update data** step above (`source`, `value_doubled`, `ACTIVE` / `inactive`). Your own `to_file()` run should reproduce the same schema and values.
+
+```python
+out_dir = Path("output")
+out_dir.mkdir(parents=True, exist_ok=True)
+
+# GeoJSON (good for sharing small layers)
+gdf.to_file(out_dir / "sites_out.geojson", driver="GeoJSON")
+```
+**Bundled output file** (result of the export pipeline — download or open in QGIS):
+
+- **[sites_out.geojson](assets/output/sites_out.geojson)**
+
+## Vector Data Analysis
+
+## Attribute Data Management
+
+Spatial features store geometry, but they also contain **attribute data**.
+
+Attribute data describes **non-spatial information** such as:
+
+- name
+- category
+- population
+- road type
+- area
+- creation date
+
+GeoPandas stores attributes in a **table structure**, similar to a Pandas DataFrame.
+
+Example:
+
+| id | city | population | district | geometry |
+|----|------|------------|----------|----------|
+| 1 | Nashik | 1500000 | Nashik | POINT(...) |
+| 2 | Pune | 7000000 | Pune | POINT(...) |
+
+Here:
+
+- each **row** = one feature
+- each **column** = one field
+- `geometry` = spatial column
+
+---
+
+## Attribute table structure
+
+A GeoDataFrame combines:
+
+- **attribute columns**
+- **geometry column**
+- optional **CRS**
+
+Example:
+
+```python
+import geopandas as gpd
+
+gdf = gpd.read_file(
+    "assets/examples/example.geojson"
+)
+
+print(gdf.columns)
+```
+
+Output:
+
+```text
+Index([
+    'id',
+    'name',
+    'category',
+    'value',
+    'geometry'
+], dtype='object')
+```
+
+Check table size:
+
+```python
+print(gdf.shape)
+```
+
+Output:
+
+```text
+(5, 5)
+```
+
+Meaning:
+
+- 5 rows
+- 5 columns
+
+Preview first rows:
+
+```python
+print(gdf.head())
+```
+
+Example:
+
+```text
+   id      name   category  value    geometry
+0   1  Feature1   region    100    POLYGON(...)
+1   2  Feature2   road      200    LINESTRING(...)
+```
+
+---
+
+## Field types
+
+Each field stores a specific data type.
+
+Common field types:
+
+| Type | Example | Python dtype |
+|------|---------|-------------|
+| Text | "Nashik" | object |
+| Integer | 10 | int64 |
+| Float | 45.7 | float64 |
+| Date | 2026-05-25 | datetime64 |
+| Boolean | True | bool |
+
+Check field types:
+
+```python
+print(gdf.dtypes)
+```
+
+Output:
+
+```text
+id             int64
+name          object
+value        float64
+geometry    geometry
+```
+
+Example table:
+
+| city | population | rainfall | survey_date |
+|------|------------|----------|-------------|
+| Nashik | 1500000 | 640.5 | 2026-05-25 |
+
+---
+
+## Add fields
+
+Create new attribute columns.
+
+Example:
+
+```python
+gdf["state"] = "Maharashtra"
+
+gdf["value_double"] = gdf["value"] * 2
+
+print(gdf)
+```
+
+Output:
+
+```text
+name      value   value_double
+Feature1   100      200
+Feature2   200      400
+```
+
+Useful for:
+
+- calculated values
+- classification
+- labels
+- metadata
+
+---
+
+## Edit fields
+
+Update existing values.
+
+Example:
+
+```python
+gdf.loc[
+    gdf["name"] == "Feature1",
+    "value"
+] = 999
+
+print(gdf)
+```
+
+Output:
+
+```text
+Feature1   999
+```
+
+Edit multiple rows:
+
+```python
+gdf.loc[
+    gdf["value"] > 200,
+    "category"
+] = "high"
+```
+
+---
+
+## Delete fields
+
+Remove columns.
+
+Example:
+
+```python
+gdf = gdf.drop(
+    columns=["state"]
+)
+
+print(gdf.columns)
+```
+
+Output:
+
+```text
+Index([
+    'id',
+    'name',
+    'category',
+    'value',
+    'geometry'
+])
+```
+
+Useful when:
+
+- removing temporary columns
+- cleaning exports
+- simplifying data
+
+---
+
+## Sorting attributes
+
+Sort rows by field values.
+
+Ascending:
+
+```python
+sorted_gdf = gdf.sort_values(
+    by="value"
+)
+
+print(sorted_gdf)
+```
+
+Descending:
+
+```python
+sorted_gdf = gdf.sort_values(
+    by="value",
+    ascending=False
+)
+
+print(sorted_gdf)
+```
+
+Example:
+
+```text
+Feature3   500
+Feature2   200
+Feature1   100
+```
+
+Useful for:
+
+- highest values
+- ranking
+- reports
+
+---
+
+## Filtering attributes
+
+Filter rows based on conditions.
+
+Example:
+
+```python
+high_value = gdf[
+    gdf["value"] > 200
+]
+
+print(high_value)
+```
+
+Output:
+
+```text
+Feature3
+Feature4
+```
+
+Multiple conditions:
+
+```python
+result = gdf[
+    (gdf["value"] > 100) &
+    (gdf["category"] == "road")
+]
+
+print(result)
+```
+
+Text filter:
+
+```python
+roads = gdf[
+    gdf["category"] == "road"
+]
+```
+
+Useful for:
+
+- selecting roads
+- population threshold
+- land-use classes
+
+---
+
+## Select by attribute
+
+Select features using SQL-like expressions.
+
+Example:
+
+```python
+selected = gdf.query(
+    "value > 200"
+)
+
+print(selected)
+```
+
+Output:
+
+```text
+Feature3
+Feature4
+```
+
+More examples:
+
+Select text:
+
+```python
+gdf.query(
+    "category == 'road'"
+)
+```
+
+Select range:
+
+```python
+gdf.query(
+    "100 <= value <= 300"
+)
+```
+
+Multiple rules:
+
+```python
+gdf.query(
+    "category == 'road' and value > 100"
+)
+```
+
+Use cases:
+
+- find all villages with population > 5000
+- select roads by type
+- filter recent survey records
+
+---
+
+## Attribute summary statistics
+
+Quick statistics.
+
+```python
+print(
+    gdf["value"].describe()
+)
+```
+
+Output:
+
+```text
+count      5
+mean     240
+min      100
+max      500
+```
+
+Useful for:
+
+- min/max
+- average
+- analysis
+
+---
+## Spatial Queries
+
+Spatial queries allow us to find features based on **their geographic relationship** with other features.
+
+Unlike attribute filtering (`population > 1000`), spatial queries use geometry relationships such as:
+
+- Select by location
+- Intersects
+- Contains
+- Within
+- Touches
+- Overlaps
+- Nearest neighbor
+
+GeoPandas uses **Shapely** geometry methods internally.
+
+---
+
+## Load GeoJSON
+
+We will use this GeoJSON file for all examples.
+
+Save the file as:
+
+```text
+assets/examples/spatial_queries.geojson
+```
+
+Then read it with GeoPandas.
+
+```python
+import geopandas as gpd
+
+gdf = gpd.read_file(
+    "assets/examples/spatial_queries.geojson"
+)
+
+print(gdf)
+print(gdf.geom_type)
+```
+
+Example output:
+
+```text
+geometry
+0 POLYGON(...)
+1 LINESTRING(...)
+2 POINT(...)
+3 POINT(...)
+...
+```
+
+Check geometry types:
+
+```python
+print(
+    gdf.geom_type.value_counts()
+)
+```
+
+Output:
+
+```text
+Point         8
+Polygon       1
+LineString    1
+```
+
+Separate geometries:
+
+```python
+polygon = gdf[
+    gdf.geom_type == "Polygon"
+]
+
+line = gdf[
+    gdf.geom_type == "LineString"
+]
+
+points = gdf[
+    gdf.geom_type == "Point"
+]
+```
+
+Preview:
+
+```python
+print(polygon)
+print(line)
+print(points.head())
+```
+
+---
+
+# Select by location
+
+Select features based on location.
+
+Example:
+
+Find points inside polygon.
+
+```python
+selected = points[
+    points.within(
+        polygon.geometry.iloc[0]
+    )
+]
+
+print(selected)
+```
+
+Example output:
+
+```text
+POINT (76.817687 17.696219)
+POINT (76.815596 17.697099)
+POINT (76.815965 17.696059)
+```
+
+Use cases:
+
+- villages inside district
+- trees inside farm
+- wells inside boundary
+
+---
+
+# Intersects
+
+Returns `True` if geometries share any space.
+
+Check points intersect polygon.
+
+```python
+print(
+    points.intersects(
+        polygon.geometry.iloc[0]
+    )
+)
+```
+
+Example output:
+
+```text
+2 True
+3 False
+4 False
+5 False
+6 True
+7 True
+8 True
+9 False
+dtype: bool
+```
+
+Check line intersects polygon.
+
+```python
+print(
+    line.intersects(
+        polygon.geometry.iloc[0]
+    )
+)
+```
+
+Output:
+
+```text
+1 False
+dtype: bool
+```
+
+Use cases:
+
+- river crossing village
+- road touching district
+
+---
+
+# Contains
+
+Checks if polygon fully contains another geometry.
+
+Example:
+
+```python
+print(
+    polygon.geometry.iloc[0].contains(
+        points.geometry.iloc[0]
+    )
+)
+```
+
+Output:
+
+```text
+True
+```
+
+Another:
+
+```python
+print(
+    polygon.geometry.iloc[0].contains(
+        points.geometry.iloc[-1]
+    )
+)
+```
+
+Output:
+
+```text
+False
+```
+
+Use cases:
+
+- district contains village
+- farm contains trees
+
+---
+
+# Within
+
+Opposite of contains.
+
+Check which points lie inside polygon.
+
+```python
+inside = points.within(
+    polygon.geometry.iloc[0]
+)
+
+print(inside)
+```
+
+Output:
+
+```text
+2 True
+3 False
+4 False
+5 False
+6 True
+7 True
+8 True
+9 False
+dtype: bool
+```
+
+Use cases:
+
+- sensors inside zone
+- buildings inside parcel
+
+---
+
+# Touches
+
+Returns `True` when boundaries touch.
+
+Example:
+
+```python
+print(
+    polygon.geometry.iloc[0].touches(
+        line.geometry.iloc[0]
+    )
+)
+```
+
+Output:
+
+```text
+False
+```
+
+Use cases:
+
+- parcel touching road
+- shared district border
+
+---
+
+# Overlaps
+
+Returns `True` when geometries partially overlap.
+
+Polygon and line usually do not overlap.
+
+Example:
+
+```python
+print(
+    polygon.geometry.iloc[0].overlaps(
+        line.geometry.iloc[0]
+    )
+)
+```
+
+Output:
+
+```text
+False
+```
+
+Example for polygons:
+
+```python
+poly_only = gdf[
+    gdf.geom_type == "Polygon"
+]
+
+print(poly_only)
+```
+
+Use cases:
+
+- overlapping land parcels
+- flood zone overlap
+
+---
+
+# Nearest neighbor
+
+Find closest point to line.
+
+Compute distance.
+
+```python
+distances = points.distance(
+    line.geometry.iloc[0]
+)
+
+print(distances)
+```
+
+Example output:
+
+```text
+2 0.0041
+3 0.0017
+4 0.0023
+5 0.0015
+...
+```
+
+Nearest:
+
+```python
+nearest = points.iloc[
+    distances.idxmin()
+]
+
+print(nearest)
+```
+
+Output:
+
+```text
+POINT (76.820148 17.697331)
+```
+
+Use cases:
+
+- nearest road
+- nearest hospital
+- nearest water source
+
+---
 
 ### Block 1 — Buffer around a point
 
 **`.buffer(distance)`** uses the **same units as your coordinates** (here: degrees). For buffers in **meters**, project with GeoPandas (`to_crs("EPSG:32643")`) before buffering, as in the next section.
 
 ```python
-"""One program: buffer a point → print one GeoJSON Feature."""
+"""
+Buffer a point using meters/kilometers
+and print one GeoJSON Feature.
+"""
+
 import json
 from shapely.geometry import Point, mapping
+from shapely.ops import transform
+from pyproj import Transformer
 
+# Longitude, Latitude (EPSG:4326)
 site = Point(79.03740972004755, 22.178636725204527)
-buffer_polygon = site.buffer(0.12)  # radius in degrees (illustration only)
 
+# -----------------------------
+# Buffer distance
+# -----------------------------
+distance_meters = 500          # 500 m
+# distance_meters = 2 * 1000   # 2 km
+
+# -----------------------------
+# CRS transformers
+# WGS84 -> Web Mercator (meters)
+# -----------------------------
+to_meters = Transformer.from_crs(
+    "EPSG:4326",
+    "EPSG:3857",
+    always_xy=True
+).transform
+
+to_wgs84 = Transformer.from_crs(
+    "EPSG:3857",
+    "EPSG:4326",
+    always_xy=True
+).transform
+
+# Convert point to projected CRS
+site_projected = transform(to_meters, site)
+
+# Buffer in meters
+buffer_projected = site_projected.buffer(distance_meters)
+
+# Convert back to WGS84
+buffer_polygon = transform(to_wgs84, buffer_projected)
+
+# -----------------------------
+# GeoJSON Feature
+# -----------------------------
 feature = {
     "type": "Feature",
     "properties": {
         "operation": "buffer",
-        "radius_degrees": 0.12,
+        "radius_meters": distance_meters,
+        "radius_km": distance_meters / 1000,
         "center_site": "site_1",
     },
     "geometry": mapping(buffer_polygon),
 }
+
 print(json.dumps(feature, indent=2, ensure_ascii=False))
 ```
 
@@ -126,82 +1302,279 @@ _Formatted (scroll the box if your theme wraps it):_
   "type": "Feature",
   "properties": {
     "operation": "buffer",
-    "radius_degrees": 0.12,
+    "radius_meters": 500,
+    "radius_km": 0.5,
     "center_site": "site_1"
   },
   "geometry": {
     "type": "Polygon",
     "coordinates": [
       [
-        [79.15740972004755, 22.178636725204527],
-        [79.15683188724822, 22.16687466836498],
-        [79.15510395369594, 22.15522588656259],
-        [79.15224256033541, 22.143802563933992],
-        [79.1482752639489, 22.132714713320716],
-        [79.14324027176936, 22.122069116785408],
-        [79.13718607352385, 22.111968297242175],
-        [79.13017097445108, 22.10250953110489],
-        [79.12226253378994, 22.09378391146214],
-        [79.11353691414719, 22.085875470801],
-        [79.1040781480099, 22.078860371728222],
-        [79.09397732846666, 22.072806173482725],
-        [79.08333173193137, 22.067771181303172],
-        [79.07224388131809, 22.063803884916663],
-        [79.06082055868949, 22.06094249155614],
-        [79.04917177688709, 22.059214558003863],
-        [79.03740972004755, 22.058636725204526],
-        [79.025647663208, 22.059214558003863],
-        [79.01399888140561, 22.06094249155614],
-        [79.00257555877701, 22.063803884916663],
-        [78.99148770816373, 22.067771181303172],
-        [78.98084211162843, 22.072806173482725],
-        [78.9707412920852, 22.078860371728222],
-        [78.96128252594791, 22.085875470801],
-        [78.95255690630516, 22.09378391146214],
-        [78.94464846564402, 22.10250953110489],
-        [78.93763336657125, 22.111968297242175],
-        [78.93157916832574, 22.122069116785408],
-        [78.9265441761462, 22.132714713320716],
-        [78.92257687975969, 22.143802563933992],
-        [78.91971548639916, 22.15522588656259],
-        [78.91798755284688, 22.16687466836498],
-        [78.91740972004754, 22.178636725204527],
-        [78.91798755284688, 22.190398782044074],
-        [78.91971548639916, 22.202047563846463],
-        [78.92257687975969, 22.21347088647506],
-        [78.9265441761462, 22.224558737088337],
-        [78.93157916832574, 22.235204333623646],
-        [78.93763336657125, 22.24530515316688],
-        [78.94464846564402, 22.254763919304164],
-        [78.95255690630516, 22.263489538946914],
-        [78.96128252594791, 22.271397979608054],
-        [78.9707412920852, 22.27841307868083],
-        [78.98084211162843, 22.28446727692633],
-        [78.99148770816373, 22.28950226910588],
-        [79.00257555877701, 22.29346956549239],
-        [79.01399888140561, 22.296330958852913],
-        [79.025647663208, 22.29805889240519],
-        [79.03740972004755, 22.298636725204528],
-        [79.04917177688709, 22.29805889240519],
-        [79.06082055868949, 22.296330958852913],
-        [79.07224388131809, 22.29346956549239],
-        [79.08333173193137, 22.28950226910588],
-        [79.09397732846666, 22.28446727692633],
-        [79.1040781480099, 22.27841307868083],
-        [79.11353691414719, 22.271397979608054],
-        [79.12226253378994, 22.263489538946914],
-        [79.13017097445108, 22.254763919304164],
-        [79.13718607352385, 22.24530515316688],
-        [79.14324027176936, 22.235204333623646],
-        [79.1482752639489, 22.224558737088337],
-        [79.15224256033541, 22.21347088647506],
-        [79.15510395369594, 22.202047563846463],
-        [79.15683188724822, 22.190398782044074],
-        [79.15740972004755, 22.178636725204527]
+        [
+          79.04190129646813,
+          22.178636725204523
+        ],
+        [
+          79.04187966829998,
+          22.178229046726464
+        ],
+        [
+          79.04181499208666,
+          22.17782529324954
+        ],
+        [
+          79.04170789069542,
+          22.177429353190888
+        ],
+        [
+          79.04155939557124,
+          22.17704503975161
+        ],
+        [
+          79.0413709368033,
+          22.176676054190445
+        ],
+        [
+          79.0411443293526,
+          22.17632595017434
+        ],
+        [
+          79.04088175557273,
+          22.175998099549567
+        ],
+        [
+          79.04058574419277,
+          22.175695659863095
+        ],
+        [
+          79.04025914596407,
+          22.175421543947305
+        ],
+        [
+          79.03990510620616,
+          22.175178391861195
+        ],
+        [
+          79.03952703451542,
+          22.174968545458487
+        ],
+        [
+          79.0391285719289,
+          22.17479402582795
+        ],
+        [
+          79.03871355585916,
+          22.174656513823297
+        ],
+        [
+          79.0382859831378,
+          22.17455733387049
+        ],
+        [
+          79.03784997152385,
+          22.174497441208583
+        ],
+        [
+          79.03740972004753,
+          22.174477412687075
+        ],
+        [
+          79.03696946857121,
+          22.174497441208583
+        ],
+        [
+          79.03653345695727,
+          22.17455733387049
+        ],
+        [
+          79.03610588423592,
+          22.174656513823297
+        ],
+        [
+          79.03569086816617,
+          22.17479402582795
+        ],
+        [
+          79.03529240557965,
+          22.174968545458487
+        ],
+        [
+          79.03491433388892,
+          22.175178391861195
+        ],
+        [
+          79.034560294131,
+          22.175421543947305
+        ],
+        [
+          79.0342336959023,
+          22.175695659863095
+        ],
+        [
+          79.03393768452234,
+          22.175998099549567
+        ],
+        [
+          79.03367511074246,
+          22.17632595017434
+        ],
+        [
+          79.03344850329178,
+          22.176676054190445
+        ],
+        [
+          79.03326004452383,
+          22.17704503975161
+        ],
+        [
+          79.03311154939965,
+          22.177429353190888
+        ],
+        [
+          79.03300444800841,
+          22.17782529324954
+        ],
+        [
+          79.03293977179509,
+          22.178229046726464
+        ],
+        [
+          79.03291814362693,
+          22.178636725204523
+        ],
+        [
+          79.03293977179509,
+          22.17904440250007
+        ],
+        [
+          79.03300444800841,
+          22.17944815247489
+        ],
+        [
+          79.03311154939965,
+          22.179844086846437
+        ],
+        [
+          79.03326004452383,
+          22.180228392632145
+        ],
+        [
+          79.03344850329178,
+          22.180597368867417
+        ],
+        [
+          79.03367511074246,
+          22.180947462243687
+        ],
+        [
+          79.03393768452234,
+          22.18127530132356
+        ],
+        [
+          79.0342336959023,
+          22.181577729003745
+        ],
+        [
+          79.034560294131,
+          22.18185183291324
+        ],
+        [
+          79.03491433388892,
+          22.18209497345446
+        ],
+        [
+          79.03529240557965,
+          22.182304809217335
+        ],
+        [
+          79.03569086816617,
+          22.182479319521974
+        ],
+        [
+          79.03610588423592,
+          22.182616823873065
+        ],
+        [
+          79.03653345695727,
+          22.182715998138757
+        ],
+        [
+          79.03696946857121,
+          22.182775887298558
+        ],
+        [
+          79.03740972004753,
+          22.182795914637556
+        ],
+        [
+          79.03784997152385,
+          22.182775887298558
+        ],
+        [
+          79.0382859831378,
+          22.182715998138757
+        ],
+        [
+          79.03871355585916,
+          22.182616823873065
+        ],
+        [
+          79.0391285719289,
+          22.182479319521974
+        ],
+        [
+          79.03952703451542,
+          22.182304809217335
+        ],
+        [
+          79.03990510620616,
+          22.18209497345446
+        ],
+        [
+          79.04025914596407,
+          22.18185183291324
+        ],
+        [
+          79.04058574419277,
+          22.181577729003745
+        ],
+        [
+          79.04088175557273,
+          22.18127530132356
+        ],
+        [
+          79.0411443293526,
+          22.180947462243687
+        ],
+        [
+          79.0413709368033,
+          22.180597368867417
+        ],
+        [
+          79.04155939557124,
+          22.180228392632145
+        ],
+        [
+          79.04170789069542,
+          22.179844086846437
+        ],
+        [
+          79.04181499208666,
+          22.17944815247489
+        ],
+        [
+          79.04187966829998,
+          22.17904440250007
+        ],
+        [
+          79.04190129646813,
+          22.178636725204523
+        ]
       ]
     ]
   }
 }
+
 ```
 
 </div>
@@ -474,199 +1847,1515 @@ _Formatted (scroll):_
 
 For **many features** and **attribute tables**, combine the Shapely ideas above with **GeoPandas** tables: read layers, filter rows, and run spatial operations such as **`sjoin`** and **`overlay`** in the sections that follow.
 
-## Introduction to GeoPandas
+### Block 5 — Within (points inside polygon)
 
-### What is GeoPandas?
+Reads one **GeoJSON file**, takes the **first polygon**, checks all **points within** that polygon, and prints a GeoJSON **FeatureCollection** containing:
 
-**GeoPandas** is a Python library used to work with **geospatial data** in a tabular format, similar to Pandas. It extends Pandas by adding support for geometry (points, lines, polygons) and spatial operations like mapping, filtering, and projections. It is widely used in GIS and works with libraries like Shapely.
-
-
-So: **Shapely** = one geometry, many methods; **GeoPandas** = many geometries + attributes + CRS + file read/write + spatial joins and overlays.
-
-```mermaid
-graph TD
-    A[GeoPandas] --> B[Pandas DataFrame]
-    A --> C[Spatial Operations]
-    A --> S[Shapely geometries in geometry column]
-    B --> D[Data Manipulation]
-    B --> E[Statistical Analysis]
-    C --> F[Geometric Operations]
-    C --> G[Spatial Relationships]
-```
-
-### GeoPandas basics: read, export, access, update
-
-These patterns are the same ones you will reuse in the rest of this module: **read** a vector file into a **`GeoDataFrame`**, **inspect** rows and columns, **change** attribute values or add columns, and **write** results back to disk.
-
-**Read a file** — `read_file()` accepts a path, URL, or ZIP; set **`layer=`** when the container has more than one table (GeoPackage, FileGDB).
+- the polygon
+- all points inside it
 
 ```python
-from pathlib import Path
-import geopandas as gpd
+import json
+from shapely.geometry import shape, mapping, Point, Polygon
 
-# Example: bundled sample GeoJSON (adjust path if your working directory differs)
-path = Path("assets/examples/example.geojson")
-if not path.exists():
-    path = Path("docs/assets/examples/example.geojson")
+# Input GeoJSON file
+INPUT_FILE = "/content/spatial_data.geojson"
 
-gdf = gpd.read_file(path)
-print(gdf.crs)              # CRS when declared in the file (GeoJSON often EPSG:4326)
-print(gdf.shape)            # (number of rows, number of columns)
-print(gdf.geometry.name)    # active geometry column name (usually "geometry")
+# Read GeoJSON
+with open(INPUT_FILE, "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+# Separate points and polygons
+points = []
+polygons = []
+
+for feature in data["features"]:
+    geom = shape(feature["geometry"])
+
+    if isinstance(geom, Point):
+        points.append(geom)
+
+    elif isinstance(geom, Polygon):
+        polygons.append(geom)
+
+# Take first polygon
+if not polygons:
+    raise ValueError("No polygon found in GeoJSON")
+
+target_polygon = polygons[0]
+
+# Find points within polygon
+points_within = []
+
+for pt in points:
+    if pt.within(target_polygon):
+        points_within.append(pt)
+
+# Build output GeoJSON
+output_features = []
+
+# Add polygon
+output_features.append({
+    "type": "Feature",
+    "properties": {
+        "type": "polygon"
+    },
+    "geometry": mapping(target_polygon),
+})
+
+# Add points within
+for pt in points_within:
+    output_features.append({
+        "type": "Feature",
+        "properties": {
+            "type": "point_within"
+        },
+        "geometry": mapping(pt),
+    })
+
+# Final FeatureCollection
+result = {
+    "type": "FeatureCollection",
+    "features": output_features,
+}
+
+# Print GeoJSON
+print(json.dumps(result, indent=2))
 ```
 
-**Example printed output** (reading [`assets/examples/example.geojson`](assets/examples/example.geojson) from this course):
+Example input:
 
-```text
-EPSG:4326
-(5, 6)
-geometry
+```json
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [[0,0],[5,0],[5,5],[0,5],[0,0]]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [2,2]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Point",
+        "coordinates": [8,8]
+      }
+    }
+  ]
+}
 ```
 
-So this sample layer has **5 features**, **6 columns** (including `geometry`), WGS 84 coordinates, and the geometry column is named **`geometry`**.
+Example output:
 
-**Access data** — a GeoDataFrame is a **pandas** table plus **`geometry`**: use **`head`**, **`loc`** / **`iloc`**, column names, and boolean filters exactly like a `DataFrame`.
+```json
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "operation": "within",
+        "feature_type": "polygon"
+      },
+      "geometry": {
+        "type": "Polygon"
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "operation": "within",
+        "feature_type": "point_within"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [2,2]
+      }
+    }
+  ]
+}
+```
+
+Use cases:
+
+- schools inside village boundary
+- trees inside park
+- wells inside survey parcel
+- GPS points inside district
+
+> **Note:** `within()` returns `True` only when a point lies completely inside the polygon.  
+> If the point touches the polygon boundary exactly, it returns `False`.
+
+### Block 6 — Nearest neighbor (line buffer + nearby points)
+
+Reads one **GeoJSON file**, takes the **first line**, creates a **buffer around the line** using a distance in **kilometers**, finds all **points inside that buffer**, and prints a GeoJSON **FeatureCollection** containing:
+
+- the original line
+- the buffer polygon
+- all nearby points inside the buffer
 
 ```python
-# First rows and all attribute columns + geometry
-print(gdf.head(3))
+"""One program: line buffer + nearby points → print GeoJSON FeatureCollection."""
+import json
+from shapely.geometry import shape, mapping, Point, LineString
+from shapely.ops import transform
+from pyproj import Transformer
 
-# Subset of columns (default .head() shows five rows)
-print(gdf[["name", "geometry"]].head())
+# Input GeoJSON
+INPUT_FILE = "data.geojson"
 
-# Rows by position or label (use in your own logic; shown here as patterns)
-row0 = gdf.iloc[0]
-subset = gdf.loc[gdf["name"] == "Feature 3"]
+# Buffer distance
+buffer_km = 2
+buffer_meters = buffer_km * 1000
 
-# Geometry types and point coordinates (only for Point rows)
-print(gdf.geometry.geom_type.unique())
-pts = gdf[gdf.geometry.geom_type == "Point"]
-print(pts.geometry.x, pts.geometry.y)
+# Read GeoJSON
+with open(INPUT_FILE, "r", encoding="utf-8") as f:
+    data = json.load(f)
+
+# Store features
+points = []
+lines = []
+
+# Read geometries
+for feature in data["features"]:
+    geom = shape(feature["geometry"])
+
+    if isinstance(geom, Point):
+        points.append(geom)
+
+    elif isinstance(geom, LineString):
+        lines.append(geom)
+
+# Take first line
+if not lines:
+    raise ValueError("No LineString found in GeoJSON")
+
+target_line = lines[0]
+
+# Projection helpers
+to_meters = Transformer.from_crs(
+    "EPSG:4326",
+    "EPSG:3857",
+    always_xy=True
+).transform
+
+to_wgs84 = Transformer.from_crs(
+    "EPSG:3857",
+    "EPSG:4326",
+    always_xy=True
+).transform
+
+# Convert line into projected CRS
+line_projected = transform(to_meters, target_line)
+
+# Buffer in meters
+buffer_projected = line_projected.buffer(buffer_meters)
+
+# Convert back to WGS84
+buffer_polygon = transform(to_wgs84, buffer_projected)
+
+# Points inside buffer
+nearby_points = []
+
+for pt in points:
+    if pt.within(buffer_polygon):
+        nearby_points.append(pt)
+
+# Build output
+features = []
+
+# Original line
+features.append({
+    "type": "Feature",
+    "properties": {
+        "operation": "nearest_neighbor",
+        "feature_type": "line",
+    },
+    "geometry": mapping(target_line),
+})
+
+# Buffer polygon
+features.append({
+    "type": "Feature",
+    "properties": {
+        "operation": "nearest_neighbor",
+        "feature_type": "buffer",
+        "buffer_km": buffer_km,
+    },
+    "geometry": mapping(buffer_polygon),
+})
+
+# Nearby points
+for pt in nearby_points:
+    features.append({
+        "type": "Feature",
+        "properties": {
+            "operation": "nearest_neighbor",
+            "feature_type": "nearby_point",
+        },
+        "geometry": mapping(pt),
+    })
+
+# Final GeoJSON
+result = {
+    "type": "FeatureCollection",
+    "features": features,
+}
+
+print(json.dumps(result, indent=2, ensure_ascii=False))
 ```
 
-**Example printed output** (same `example.geojson` after `read_file` above):
+Example use cases:
 
-**1 — `print(gdf.head(3))`**
+- schools near road
+- wells near canal
+- trees near river
+- bus stops near highway
 
-```text
-   id       name category  status  value                                         geometry
-0   1  Feature 1   region  active    100  POLYGON ((77.57767 21.03445, 77.57767 20.62253...
-1   2  Feature 2    route  active    200  LINESTRING (80.65195 23.14701, 80.57995 19.098...
-2   3  Feature 3     site  active    300                          POINT (79.56102 21.59242)
-```
+> **Note:**  
+> Buffer distance is measured in **meters/kilometers** using projected CRS (**EPSG:3857**).  
+> Only points inside the buffer are returned.
 
-**2 — `print(gdf[["name", "geometry"]].head())`**
 
-```text
-        name                                         geometry
-0  Feature 1  POLYGON ((77.57767 21.03445, 77.57767 20.62253...
-1  Feature 2  LINESTRING (80.65195 23.14701, 80.57995 19.098...
-2  Feature 3                          POINT (79.56102 21.59242)
-3  Feature 4                          POINT (76.26425 19.42733)
-4  Feature 5  POLYGON ((75.52703 23.63438, 74.33056 21.38052...
-```
+### Block 7 — Polygon buffer
 
-**3 — `print(gdf.geometry.geom_type.unique())`**
-
-```text
-['Polygon' 'LineString' 'Point']
-```
-
-**4 — `print(pts.geometry.x, pts.geometry.y)`** (only the two **Point** features)
-
-```text
-2    79.561022
-3    76.264254
-dtype: float64 2    21.592421
-3    19.427326
-dtype: float64
-```
-
-The last line is **two Series** printed one after the other (longitude then latitude index `2` and `3` match the original row indices in `gdf`).
-
-**Update data** — assign **new attribute columns** or overwrite cells with pandas syntax; keep the **`geometry`** column valid when you replace geometries.
+Creates a **buffer around the first polygon** from a GeoJSON variable using distance in **meters / kilometers**, then prints the original polygon + buffer as GeoJSON.
 
 ```python
-# Add / overwrite attribute columns (copy first so you do not mutate a shared view)
-gdf = gdf.copy()
-gdf["source"] = "example.geojson"
-gdf["value_doubled"] = gdf["value"] * 2
-print(gdf)
+"""One program: polygon buffer → print GeoJSON FeatureCollection."""
+import json
+from shapely.geometry import shape, mapping, Polygon
+from shapely.ops import transform
+from pyproj import Transformer
 
-# Update selected rows (pandas .loc on the attribute column)
-gdf.loc[gdf["status"] == "active", "status"] = "ACTIVE"
-print(gdf)
+# GeoJSON input
+geojson = {
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {},
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[
+                    [79.10, 22.13],
+                    [79.14, 22.13],
+                    [79.14, 22.17],
+                    [79.10, 22.17],
+                    [79.10, 22.13]
+                ]]
+            }
+        }
+    ]
+}
+
+# Buffer distance
+buffer_km = 1
+buffer_meters = buffer_km * 1000
+
+# Collect polygons
+polygons = []
+
+for feature in geojson["features"]:
+    geom = shape(feature["geometry"])
+
+    if isinstance(geom, Polygon):
+        polygons.append(geom)
+
+# Take first polygon
+if not polygons:
+    raise ValueError("No polygon found")
+
+target_polygon = polygons[0]
+
+# CRS transforms
+to_meters = Transformer.from_crs(
+    "EPSG:4326",
+    "EPSG:3857",
+    always_xy=True
+).transform
+
+to_wgs84 = Transformer.from_crs(
+    "EPSG:3857",
+    "EPSG:4326",
+    always_xy=True
+).transform
+
+# Project polygon
+polygon_projected = transform(to_meters, target_polygon)
+
+# Buffer in meters
+buffer_projected = polygon_projected.buffer(buffer_meters)
+
+# Convert back
+buffer_polygon = transform(to_wgs84, buffer_projected)
+
+# Output GeoJSON
+result = {
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "feature_type": "polygon"
+            },
+            "geometry": mapping(target_polygon),
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "feature_type": "polygon_buffer",
+                "buffer_km": buffer_km,
+            },
+            "geometry": mapping(buffer_polygon),
+        },
+    ],
+}
+
+print(json.dumps(result, indent=2, ensure_ascii=False))
 ```
 
-**Example printed output** (continuing from the same `gdf` loaded earlier):
+Use cases:
 
-**1 — After adding `source` and `value_doubled` (`print(gdf)`)**
+- village expansion zone
+- lake protection zone
+- land parcel setback
+- environmental planning
 
-```text
-   id       name category    status  value                                         geometry           source  value_doubled
-0   1  Feature 1   region    active    100  POLYGON ((77.57767 21.03445, 77.57767 20.62253...  example.geojson            200
-1   2  Feature 2    route    active    200  LINESTRING (80.65195 23.14701, 80.57995 19.098...  example.geojson            400
-2   3  Feature 3     site    active    300                          POINT (79.56102 21.59242)  example.geojson            600
-3   4  Feature 4     site  inactive    400                          POINT (76.26425 19.42733)  example.geojson            800
-4   5  Feature 5   region  inactive    500  POLYGON ((75.52703 23.63438, 74.33056 21.38052...  example.geojson           1000
-```
+> **Note**
+>
+> - `1000 meters = 1 kilometer`
+> - EPSG:4326 stores coordinates in degrees
+> - transform to projected CRS before buffering for accurate distance
 
-**2 — After `gdf.loc[gdf["status"] == "active", "status"] = "ACTIVE"` (`print(gdf)`)**
+### Block 8 — Dissolve buffers
 
-```text
-   id       name category    status  value                                         geometry           source  value_doubled
-0   1  Feature 1   region    ACTIVE    100  POLYGON ((77.57767 21.03445, 77.57767 20.62253...  example.geojson            200
-1   2  Feature 2    route    ACTIVE    200  LINESTRING (80.65195 23.14701, 80.57995 19.098...  example.geojson            400
-2   3  Feature 3     site    ACTIVE    300                          POINT (79.56102 21.59242)  example.geojson            600
-3   4  Feature 4     site  inactive    400                          POINT (76.26425 19.42733)  example.geojson            800
-4   5  Feature 5   region  inactive    500  POLYGON ((75.52703 23.63438, 74.33056 21.38052...  example.geojson           1000
-```
-
-Rows that were **`active`** are now **`ACTIVE`**; **`inactive`** rows are unchanged.
-
-**Export a file** — **`to_file()`** writes GeoPackage, GeoJSON, Shapefile, etc. Pick a **`driver`** when the extension is ambiguous; use **`index=False`**-style options via pandas only for non-spatial exports.
-
-This course ships a **ready-made export** at **[`assets/output/sites_out.geojson`](assets/output/sites_out.geojson)** — it matches the **`gdf`** from the **Update data** step above (`source`, `value_doubled`, `ACTIVE` / `inactive`). Your own `to_file()` run should reproduce the same schema and values.
+Creates buffers around **multiple polygons** from a GeoJSON variable, merges overlapping buffers into one geometry, and prints GeoJSON.
 
 ```python
-out_dir = Path("output")
-out_dir.mkdir(parents=True, exist_ok=True)
+"""One program: dissolve polygon buffers → print GeoJSON FeatureCollection."""
+import json
+from shapely.geometry import shape, mapping, Polygon
+from shapely.ops import transform, unary_union
+from pyproj import Transformer
 
-# GeoJSON (good for sharing small layers)
-gdf.to_file(out_dir / "sites_out.geojson", driver="GeoJSON")
+# GeoJSON input
+geojson = {
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {},
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[
+                    [79.10, 22.13],
+                    [79.14, 22.13],
+                    [79.14, 22.17],
+                    [79.10, 22.17],
+                    [79.10, 22.13]
+                ]]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {},
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[
+                    [79.13, 22.15],
+                    [79.17, 22.15],
+                    [79.17, 22.19],
+                    [79.13, 22.19],
+                    [79.13, 22.15]
+                ]]
+            }
+        }
+    ]
+}
+
+# Buffer distance
+buffer_km = 1
+buffer_meters = buffer_km * 1000
+
+# Collect polygons
+polygons = []
+
+for feature in geojson["features"]:
+    geom = shape(feature["geometry"])
+
+    if isinstance(geom, Polygon):
+        polygons.append(geom)
+
+if not polygons:
+    raise ValueError("No polygons found")
+
+# CRS transforms
+to_meters = Transformer.from_crs(
+    "EPSG:4326",
+    "EPSG:3857",
+    always_xy=True
+).transform
+
+to_wgs84 = Transformer.from_crs(
+    "EPSG:3857",
+    "EPSG:4326",
+    always_xy=True
+).transform
+
+# Create buffers
+buffers = []
+
+for polygon in polygons:
+    projected = transform(to_meters, polygon)
+    buffered = projected.buffer(buffer_meters)
+    back = transform(to_wgs84, buffered)
+
+    buffers.append(back)
+
+# Dissolve / merge
+merged = unary_union(buffers)
+
+# Output
+result = {
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "feature_type": "dissolved_buffer",
+                "buffer_km": buffer_km,
+            },
+            "geometry": mapping(merged),
+        }
+    ],
+}
+
+print(json.dumps(result, indent=2, ensure_ascii=False))
 ```
-**Bundled output file** (result of the export pipeline — download or open in QGIS):
 
-- **[sites_out.geojson](assets/output/sites_out.geojson)**
+Use cases:
+
+- merge village service areas
+- combine protected zones
+- dissolve multiple parcel buffers
+
+### Block 9 — Buffer distance units
+
+Shows how to create buffers using **meters and kilometers** from a GeoJSON variable.
+
+```python
+"""One program: compare buffer distance units."""
+import json
+from shapely.geometry import shape, mapping, Point
+from shapely.ops import transform
+from pyproj import Transformer
+
+# GeoJSON input
+geojson = {
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {},
+            "geometry": {
+                "type": "Point",
+                "coordinates": [79.12, 22.15]
+            }
+        }
+    ]
+}
+
+# Distances
+distance_meters = 500
+distance_km = 2
+
+# Find first point
+points = []
+
+for feature in geojson["features"]:
+    geom = shape(feature["geometry"])
+
+    if isinstance(geom, Point):
+        points.append(geom)
+
+if not points:
+    raise ValueError("No point found")
+
+site = points[0]
+
+# CRS transforms
+to_meters = Transformer.from_crs(
+    "EPSG:4326",
+    "EPSG:3857",
+    always_xy=True
+).transform
+
+to_wgs84 = Transformer.from_crs(
+    "EPSG:3857",
+    "EPSG:4326",
+    always_xy=True
+).transform
+
+# Project point
+site_projected = transform(to_meters, site)
+
+# Buffers
+buffer_500m = site_projected.buffer(distance_meters)
+buffer_2km = site_projected.buffer(distance_km * 1000)
+
+# Back to WGS84
+buffer_500m = transform(to_wgs84, buffer_500m)
+buffer_2km = transform(to_wgs84, buffer_2km)
+
+# Output
+result = {
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "distance": "500 meters"
+            },
+            "geometry": mapping(buffer_500m),
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "distance": "2 kilometers"
+            },
+            "geometry": mapping(buffer_2km),
+        },
+    ],
+}
+
+print(json.dumps(result, indent=2, ensure_ascii=False))
+```
+
+Use cases:
+
+- 500 meter walking zone
+- 2 km service radius
+- compare different buffer distances
+
+> **Note**
+>
+> - `1000 meters = 1 kilometer`
+> - EPSG:4326 stores coordinates in degrees
+> - convert to projected CRS before buffering for accurate distance
+
+### Block 10 — Clip
+
+Uses the **first polygon as clip boundary**, clips all other polygons to that boundary, and prints a GeoJSON **FeatureCollection**.
+
+```python
+"""One program: clip polygons using first polygon."""
+import json
+from shapely.geometry import shape, mapping, Polygon
+
+# GeoJSON input
+geojson = {
+    "type": "FeatureCollection",
+    "features": [
+        {
+            # Clip boundary
+            "type": "Feature",
+            "properties": {
+                "name": "clip_area"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[
+                    [79.10, 22.13],
+                    [79.16, 22.13],
+                    [79.16, 22.19],
+                    [79.10, 22.19],
+                    [79.10, 22.13]
+                ]]
+            }
+        },
+        {
+            # Polygon to clip
+            "type": "Feature",
+            "properties": {
+                "name": "village_1"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[
+                    [79.12, 22.15],
+                    [79.18, 22.15],
+                    [79.18, 22.21],
+                    [79.12, 22.21],
+                    [79.12, 22.15]
+                ]]
+            }
+        },
+        {
+            # Polygon to clip
+            "type": "Feature",
+            "properties": {
+                "name": "village_2"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[
+                    [79.08, 22.11],
+                    [79.13, 22.11],
+                    [79.13, 22.16],
+                    [79.08, 22.16],
+                    [79.08, 22.11]
+                ]]
+            }
+        }
+    ]
+}
+
+# Collect polygons
+polygons = []
+
+for feature in geojson["features"]:
+    geom = shape(feature["geometry"])
+
+    if isinstance(geom, Polygon):
+        polygons.append(geom)
+
+# First polygon = clip boundary
+if not polygons:
+    raise ValueError("No polygons found")
+
+clip_boundary = polygons[0]
+
+# Clip remaining polygons
+features = []
+
+# Add clip boundary
+features.append({
+    "type": "Feature",
+    "properties": {
+        "feature_type": "clip_boundary"
+    },
+    "geometry": mapping(clip_boundary),
+})
+
+# Clip polygons
+for polygon in polygons[1:]:
+    clipped = polygon.intersection(clip_boundary)
+
+    if not clipped.is_empty:
+        features.append({
+            "type": "Feature",
+            "properties": {
+                "feature_type": "clipped_polygon"
+            },
+            "geometry": mapping(clipped),
+        })
+
+# Final GeoJSON
+result = {
+    "type": "FeatureCollection",
+    "features": features,
+}
+
+print(json.dumps(result, indent=2, ensure_ascii=False))
+```
+
+Use cases:
+
+- clip villages inside district
+- roads inside project boundary
+- forest area inside study area
+- parcel data inside admin boundary
+
+> **Note**
+>
+> - first polygon is used as clip boundary
+> - `intersection()` returns only overlapping area
+> - non-overlapping features are ignored
+
+## Measurement & Proximity
+
+### Block 11 — Area calculation
+
+Calculates the **area of a polygon** and prints the result in **square meters (`sqm`)** and **square kilometers (`sqkm`)**.
+
+```python
+"""One program: polygon area calculation."""
+import json
+from shapely.geometry import shape, Polygon
+from shapely.ops import transform
+from pyproj import Transformer
+
+# GeoJSON input
+geojson = {
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {},
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[
+                    [79.10, 22.13],
+                    [79.14, 22.13],
+                    [79.14, 22.17],
+                    [79.10, 22.17],
+                    [79.10, 22.13]
+                ]]
+            }
+        }
+    ]
+}
+
+# WGS84 -> projected CRS in meters
+to_meters = Transformer.from_crs(
+    "EPSG:4326",
+    "EPSG:3857",
+    always_xy=True
+).transform
+
+for feature in geojson["features"]:
+    geom = shape(feature["geometry"])
+
+    if isinstance(geom, Polygon):
+        # Convert polygon into meters
+        geom_projected = transform(to_meters, geom)
+
+        # Area in square meters
+        area_sqm = geom_projected.area
+
+        # Convert to square kilometers
+        area_sqkm = area_sqm / 1_000_000
+
+        print("Area (sqm):", round(area_sqm, 2))
+        print("Area (sqkm):", round(area_sqkm, 4))
+```
+Example output:
+
+```text
+Area (sqm): 21884545.37
+Area (sqkm): 21.8845
+```
+
+Use cases:
+
+- parcel size
+- village area
+- lake coverage
+
+> Area is in coordinate units unless projected CRS is used.
+
+### Block 12 — Length calculation (meters / kilometers)
+
+Calculates the **length of a line** and prints the result in **meters (`m`)** and **kilometers (`km`)**.
+
+```python
+"""One program: line length calculation."""
+import json
+from shapely.geometry import shape, LineString
+from shapely.ops import transform
+from pyproj import Transformer
+
+geojson = {
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [79.05, 22.10],
+                    [79.15, 22.12],
+                    [79.25, 22.14]
+                ]
+            },
+            "properties": {}
+        }
+    ]
+}
+
+# WGS84 -> projected CRS in meters
+to_meters = Transformer.from_crs(
+    "EPSG:4326",
+    "EPSG:3857",
+    always_xy=True
+).transform
+
+for feature in geojson["features"]:
+    geom = shape(feature["geometry"])
+
+    if isinstance(geom, LineString):
+        # Convert line into meters
+        geom_projected = transform(to_meters, geom)
+
+        # Length in meters
+        length_m = geom_projected.length
+
+        # Convert to kilometers
+        length_km = length_m / 1000
+
+        print("Length (m):", round(length_m, 2))
+        print("Length (km):", round(length_km, 3))
+```
+
+Example output:
+
+```text
+Length (m): 22792.41
+Length (km): 22.792
+```
+
+Use cases:
+
+- road length
+- canal length
+- river segment
+- utility pipelines
+- railway tracks
+
+### Block 13 — Distance measurement (meters / kilometers)
+
+Measures the **distance between two points** and prints the result in **meters (`m`)** and **kilometers (`km`)**.
+
+```python
+"""One program: distance between points."""
+import json
+from shapely.geometry import shape, Point
+from shapely.ops import transform
+from pyproj import Transformer
+
+geojson = {
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [79.12, 22.15]
+            },
+            "properties": {}
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [79.18, 22.20]
+            },
+            "properties": {}
+        }
+    ]
+}
+
+# WGS84 -> projected CRS in meters
+to_meters = Transformer.from_crs(
+    "EPSG:4326",
+    "EPSG:3857",
+    always_xy=True
+).transform
+
+points = []
+
+for feature in geojson["features"]:
+    geom = shape(feature["geometry"])
+
+    if isinstance(geom, Point):
+        # Convert point into meters
+        point_projected = transform(to_meters, geom)
+        points.append(point_projected)
+
+if len(points) >= 2:
+    # Distance in meters
+    distance_m = points[0].distance(points[1])
+
+    # Convert to kilometers
+    distance_km = distance_m / 1000
+
+    print("Distance (m):", round(distance_m, 2))
+    print("Distance (km):", round(distance_km, 3))
+```
+
+Example output:
+
+```text
+Distance (m): 8625.47
+Distance (km): 8.625
+```
+
+Use cases:
+
+- school to hospital
+- village to well
+- tower to tower
+- customer to delivery point
+- bus stop to railway station
+
+### Block 14 — Nearest feature
+
+Finds the **nearest point** to the first point.
+
+```python
+"""One program: nearest feature."""
+import json
+from shapely.geometry import shape, Point, mapping
+
+geojson = {
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [79.12, 22.15]
+            },
+            "properties": {
+                "name": "school"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [79.13, 22.16]
+            },
+            "properties": {
+                "name": "hospital"
+            }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [79.25, 22.25]
+            },
+            "properties": {
+                "name": "market"
+            }
+        }
+    ]
+}
+
+points = []
+
+for feature in geojson["features"]:
+    geom = shape(feature["geometry"])
+
+    if isinstance(geom, Point):
+        points.append(geom)
+
+target = points[0]
+
+nearest = None
+nearest_distance = None
+
+for pt in points[1:]:
+    d = target.distance(pt)
+
+    if nearest is None or d < nearest_distance:
+        nearest = pt
+        nearest_distance = d
+
+result = {
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "feature_type": "target_point"
+            },
+            "geometry": mapping(target),
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "feature_type": "nearest_point",
+                "distance": nearest_distance,
+            },
+            "geometry": mapping(nearest),
+        }
+    ],
+}
+
+print(json.dumps(result, indent=2, ensure_ascii=False))
+```
+
+Use cases:
+
+- nearest hospital
+- nearest water source
+- nearest bus stop
+- nearest tower
+
+### Block 15 — Line intersects polygon
+
+Checks whether a **line crosses a polygon**, returns the **polygon**, **original line**, and **intersected line** as GeoJSON, and calculates both line lengths in **meters** and **kilometers**.
+
+```python
+"""One program: line intersects polygon."""
+import json
+from shapely.geometry import shape, mapping, LineString, Polygon
+from shapely.ops import transform
+from pyproj import Transformer
+
+geojson = {
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[
+                    [79.10, 22.13],
+                    [79.16, 22.13],
+                    [79.16, 22.19],
+                    [79.10, 22.19],
+                    [79.10, 22.13]
+                ]]
+            },
+            "properties": {}
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [79.08, 22.15],
+                    [79.18, 22.17]
+                ]
+            },
+            "properties": {}
+        }
+    ]
+}
+
+# WGS84 -> projected CRS in meters
+to_meters = Transformer.from_crs(
+    "EPSG:4326",
+    "EPSG:3857",
+    always_xy=True
+).transform
+
+polygon = None
+line = None
+
+for feature in geojson["features"]:
+    geom = shape(feature["geometry"])
+
+    if isinstance(geom, Polygon):
+        polygon = geom
+
+    elif isinstance(geom, LineString):
+        line = geom
+
+# Original line length
+line_projected = transform(to_meters, line)
+original_length_m = line_projected.length
+original_length_km = original_length_m / 1000
+
+# Intersection geometry
+intersection = line.intersection(polygon)
+
+# Intersection length
+intersection_length_m = 0
+intersection_length_km = 0
+
+if not intersection.is_empty:
+    intersection_projected = transform(to_meters, intersection)
+    intersection_length_m = intersection_projected.length
+    intersection_length_km = intersection_length_m / 1000
+
+result = {
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "name": "polygon",
+                "fill": "#d9d9d9",
+                "fill-opacity": 0.4,
+                "stroke": "#666666",
+                "stroke-width": 1
+            },
+            "geometry": mapping(polygon)
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "name": "original_line",
+                "color": "blue",
+                "length_m": round(original_length_m, 2),
+                "length_km": round(original_length_km, 3),
+                "stroke": "#0066ff",
+                "stroke-width": 2,
+                "stroke-opacity": 1
+            },
+            "geometry": mapping(line)
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "name": "intersection_line",
+                "color": "red",
+                "length_m": round(intersection_length_m, 2),
+                "length_km": round(intersection_length_km, 3),
+                "stroke": "#e00000",
+                "stroke-width": 2,
+                "stroke-opacity": 1
+            },
+            "geometry": mapping(intersection)
+        }
+    ]
+}
+
+print(json.dumps(result, indent=2, ensure_ascii=False))
+```
+
+Example output:
+
+```text
+original_line length: 10.602 km
+intersection_line length: 6.833 km
+```
+
+Use cases:
+
+- road crossing district
+- canal through parcel
+- powerline crossing boundary
+- railway through land parcel
+- river inside village boundary
+
+
+### Block 16 — Line intersection
+
+Checks whether **two lines intersect**, returns both lines and the **intersection point** as GeoJSON.
+
+```python
+"""One program: line intersection."""
+import json
+from shapely.geometry import shape, mapping
+
+geojson = {
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [0, 0],
+                    [5, 5]
+                ]
+            },
+            "properties": {}
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "LineString",
+                "coordinates": [
+                    [0, 5],
+                    [5, 0]
+                ]
+            },
+            "properties": {}
+        }
+    ]
+}
+
+line_a = shape(geojson["features"][0]["geometry"])
+line_b = shape(geojson["features"][1]["geometry"])
+
+# Find intersection
+intersection = line_a.intersection(line_b)
+
+result = {
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "name": "line_1",
+                "color": "blue",
+                "stroke": "#0066ff",
+                "stroke-width": 2,
+                "stroke-opacity": 1
+            },
+            "geometry": mapping(line_a)
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "name": "line_2",
+                "color": "green",
+                "stroke": "#00a651",
+                "stroke-width": 2,
+                "stroke-opacity": 1
+            },
+            "geometry": mapping(line_b)
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "name": "intersection_point",
+                "color": "red",
+                "marker-color": "#e00000"
+            },
+            "geometry": mapping(intersection)
+        }
+    ]
+}
+
+print(json.dumps(result, indent=2, ensure_ascii=False))
+```
+
+Example output:
+
+```text
+line_1 and line_2 intersect at POINT (2.5 2.5)
+```
+
+Use cases:
+
+- road intersection
+- crossing utility lines
+- railway crossing
+- route network analysis
+- drainage network crossing
+
+### Block 17 — Centroid intersection check
+
+Checks whether the **centroid of one polygon lies inside another polygon**, and returns both polygons plus the centroid as GeoJSON.
+
+```python
+"""One program: centroid inside polygon."""
+import json
+from shapely.geometry import shape, mapping
+
+geojson = {
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[
+                    [0, 0],
+                    [4, 0],
+                    [4, 4],
+                    [0, 4],
+                    [0, 0]
+                ]]
+            },
+            "properties": {}
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[
+                    [2, 2],
+                    [8, 2],
+                    [8, 8],
+                    [2, 8],
+                    [2, 2]
+                ]]
+            },
+            "properties": {}
+        }
+    ]
+}
+
+polygon_a = shape(geojson["features"][0]["geometry"])
+polygon_b = shape(geojson["features"][1]["geometry"])
+
+# Centroid of first polygon
+centroid = polygon_a.centroid
+
+# Check if centroid lies inside polygon_b
+is_inside = polygon_b.contains(centroid)
+
+result = {
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "name": "polygon_a",
+                "fill": "#4da6ff",
+                "fill-opacity": 0.35,
+                "stroke": "#0066cc",
+                "stroke-width": 1
+            },
+            "geometry": mapping(polygon_a)
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "name": "polygon_b",
+                "fill": "#66cc66",
+                "fill-opacity": 0.35,
+                "stroke": "#008000",
+                "stroke-width": 1
+            },
+            "geometry": mapping(polygon_b)
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "name": "centroid",
+                "inside_polygon_b": is_inside,
+                "marker-color": "#e00000"
+            },
+            "geometry": mapping(centroid)
+        }
+    ]
+}
+
+print(json.dumps(result, indent=2, ensure_ascii=False))
+```
+
+Example output:
+
+```text
+Centroid inside polygon_b: True
+```
+
+Use cases:
+
+- assign parcel to zone
+- find center inside district
+- building center inside campus
+- village center inside boundary
+- locate centroid inside service area
+
+
+### Block 18 — Check if point is within polygon
+
+Takes **one polygon** and **one point**, checks whether the point is inside the polygon, and prints `True` or `False`.
+
+```python
+"""One program: check point within polygon."""
+from shapely.geometry import Point, Polygon
+
+# Polygon
+polygon = Polygon([
+    (79.10, 22.13),
+    (79.16, 22.13),
+    (79.16, 22.19),
+    (79.10, 22.19),
+    (79.10, 22.13),
+])
+
+# Point
+point = Point(79.12, 22.15)
+
+# Check
+is_inside = point.within(polygon)
+
+print(is_inside)
+```
+
+Example output:
+
+```text
+True
+```
+
+Example with point outside:
+
+```python
+point = Point(79.20, 22.25)
+
+print(point.within(polygon))
+```
+
+Output:
+
+```text
+False
+```
+
+Use cases:
+
+- school inside village
+- tree inside park
+- survey point inside parcel
+- well inside district
+
+> **Note**
+>
+> - `within()` returns **True** only when point is fully inside polygon
+> - if point lies exactly on polygon boundary → returns **False**
+
 
 ## Basics assignment: vectors, Shapely, GeoPandas & geojson.io
 
-These **nine tasks** recap this module’s **vector** ideas (points, lines, polygons), **Shapely** constructors and predicates, **GeoPandas** I/O and tables, and working with **GeoJSON** files. Complete them in order where it helps; each should take a short notebook or script. (CRS **reprojection** is covered later in this chapter; this assignment stays in **lon/lat** unless your instructor says otherwise.)
+These assignments recap this module’s **vector** ideas (points, lines, polygons), **Shapely** constructors and spatial predicates, **GeoPandas** I/O and attribute tables, and working with **GeoJSON** files. Complete them in order where it helps; each should take a short notebook or script. (CRS **reprojection** is covered later in this chapter; this assignment stays in **lon/lat** unless your instructor says otherwise.)
 
 Use **[geojson.io](https://geojson.io/)** to sketch geometries on a map: draw on the map, edit the JSON on the right, then **Save** (menu) or copy the **FeatureCollection** into a `.geojson` file. geojson.io uses **WGS 84 (lon/lat)**; when you build a `GeoDataFrame` by hand, set **`crs="EPSG:4326"`** so it matches.
 
 !!! tip "geojson.io workflow"
-    - Draw with the point / line / polygon tools, then click features to edit **properties** (add fields like `name`, `id`, `population`).
+    - Draw with the point / line / polygon tools, then click features to edit **properties** (add fields like `name`, `id`, `population`, `priority`).
     - **Save → GeoJSON** downloads a file you can open with **`gpd.read_file("your_file.geojson")`**.
-    - If the site shows only a **Feature**, wrap it in a **`FeatureCollection`** or save as-is; GeoPandas can read either when GDAL accepts it.
+    - If the site shows only a **Feature**, wrap it in a **FeatureCollection** or save as-is.
 
-1. **Create and download a point** — In geojson.io, place one **Point**, set a property **`name`**. Download/save as `my_place.geojson`. Load with GeoPandas, **`print(gdf.crs)`**, **`print(gdf.head())`**, and confirm **`geom_type`** is `Point`.
+1. **Create and download a point** — In geojson.io, place one **Point**, set a property **`name`**. Download/save as `my_place.geojson`. Load with GeoPandas, print CRS, preview rows, and confirm geometry type is `Point`.
 
-2. **LineString length** — Draw a **LineString** with at least **three** vertices crossing a path you care about (e.g. a trail idea). Export, load in Python, print **`gdf.geometry.iloc[0].length`** (degrees) and **`gdf.total_bounds`**. In one sentence, say why length is **not** metres yet.
+2. **LineString length** — Draw a **LineString** with at least **three** vertices. Export, load in Python, print length and total bounds. In one sentence, explain why length is **not** metres yet.
 
-3. **Polygon area and centroid** — Draw one **Polygon** (closed region). Export, load, print **`.area`** and **`.centroid`** for that geometry. Note: in **EPSG:4326**, area is in **degree²**—fine for practice, not for official hectares.
+3. **Polygon area and centroid** — Draw one **Polygon**. Export, load, print area and centroid. Note: in **EPSG:4326**, area is in **degree²**, which is fine for practice.
 
-4. **Shapely buffer** — Load your polygon from (3) as a **Shapely** geometry (e.g. `gdf.geometry.iloc[0]`), build **`buffered = geom.buffer(0.05)`** (same units as coordinates), wrap as a **`Feature`** with **`shapely.geometry.mapping`**, and **`json.dumps`** or write a small GeoJSON file. Optional: open the result in geojson.io.
+4. **Shapely buffer** — Load your polygon from (3) as a Shapely geometry, create a buffer, and export it as GeoJSON. Optional: open the result in geojson.io.
 
-5. **Intersection** — In geojson.io create **two overlapping polygons** (or one polygon + one box). Export as one FeatureCollection. In Python, split into two GeoDataFrames (one row each) and run **`gpd.overlay(..., how="intersection")`**, or use **`.intersection()`** on two Shapely geometries. Paste or describe the **overlap** geometry type you get.
+5. **Intersection** — Create **two overlapping polygons**. Export as one FeatureCollection. In Python, calculate the intersection and identify the overlap geometry type.
 
-6. **Attributes: add and export** — Load any geojson.io export. Add columns **`source`** = `"geojson.io"` and **`student_id`** (string). Save with **`gdf.to_file("edited_lab.geojson", driver="GeoJSON")`**. Re-read the file and assert row count matches.
+6. **Attributes: add and export** — Load any geojson.io export. Add columns such as **`source`** and **`student_id`**. Save as GeoJSON, re-open, and verify rows and columns.
 
-7. **Filter by attribute** — Give at least two features a numeric property (e.g. **`priority`**). In Python, keep only rows with **`priority >= 2`**. Print the result and the number of rows.
+7. **Filter by attribute** — Give at least two features a numeric property such as **`priority`**. Keep only rows with a selected value or higher. Print the filtered result and row count.
 
-8. **Point in polygon** — Draw one **polygon** and one **point inside** it in geojson.io (same file). Load, pick the point and polygon rows, and evaluate **`point_geom.within(polygon_geom)`** (Shapely) **or** **`gpd.sjoin(..., predicate="within")`**. Report `True` / `False` or the join row count.
+8. **Point in polygon** — Draw one **polygon** and one **point inside** it. Load and check whether the point lies inside the polygon. Repeat with a point outside and compare results.
 
-9. **Pure-Python FeatureCollection** — Without geojson.io, build **three** Shapely objects (`Point`, `LineString`, `Polygon`), assemble a **`GeoDataFrame`** with a **`label`** column, set **`crs="EPSG:4326"`**, and **`to_file("built_in_python.geojson", driver="GeoJSON")`**. Open **`built_in_python.geojson`** in geojson.io to visually check.
+9. **Pure-Python FeatureCollection** — Without geojson.io, create **Point**, **LineString**, and **Polygon** geometries, build a GeoDataFrame, export to GeoJSON, and open it in geojson.io to visually check.
+
+10. **Polygon buffer** — Draw one polygon. Create a buffer around it and compare the original and buffered geometry. Note how the shape and area change.
+
+11. **Dissolve buffers** — Draw two nearby polygons. Buffer both and merge the buffers. Observe whether overlapping areas dissolve into one geometry.
+
+12. **Clip** — Create one large polygon and two smaller polygons. Use the large polygon as the clip boundary. Identify which geometry remains after clipping.
+
+13. **Nearest feature** — Draw one point and multiple nearby points. Find the nearest point and note the measured distance.
+
+14. **Line buffer + nearby points** — Draw one line and several points around it. Create a buffer around the line and identify which points fall inside.
+
+15. **Touches vs overlaps** — Create polygons that touch at an edge and polygons that overlap. Compare the results and describe the difference.
+
+16. **Contains and within** — Draw one polygon and several points. Check which points are contained by the polygon and compare with the within relationship.
+
+17. **Area and perimeter** — Draw a polygon and calculate both area and perimeter. Write one sentence explaining the difference.
+
+18. **Export formats** — Export one layer as:
+    - GeoJSON
+    - GeoPackage
+    - Shapefile
+
+    Compare:
+    - file size
+    - readability
+    - whether multiple layers are supported
 
 Submit your **`.geojson` files**, a single **`.py` or `.ipynb`**, and short answers for any “explain” prompts your instructor assigns.
 
@@ -1032,6 +3721,7 @@ for idx, row in states_proj.iterrows():
 
 print(f"States intersecting MP 100 km buffer ({len(intersecting_states)}):")
 print(intersecting_states)
+```
 
 Understanding spatial relationships is crucial for geospatial analysis. Here's a comprehensive guide to spatial predicates and their use cases:
 
@@ -1064,7 +3754,7 @@ print(city_country_check.head(10))
 #     columns={'NAME': 'country'}
 # )
 # Count cities per country
-cities_per_country = city_country_check['NAME'].value_counts()
+cities_per_country = city_country_check["NAME"].value_counts()
 print(f"\nTop 10 countries by number of major cities:")
 print(cities_per_country.head(10))
 
@@ -1076,9 +3766,9 @@ states_with_country = gpd.sjoin(
     predicate='within'
 )
 
-for country, group in states_with_country.groupby('NAME'):
+for country, group in states_with_country.groupby("NAME"):
     print(f"\n🌍 Country: {country}")
-    print(group['name'].tolist())
+    print(group["name"].tolist())
 ```
 
 ## 6. Geometric Calculations
