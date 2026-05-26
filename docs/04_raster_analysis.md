@@ -138,7 +138,7 @@ Sample GeoTIFFs for practice (in **`assets/tiff/`** in this repo):
 - Units: Meters, feet
 - Example: UTM zones, State Plane
 
-### Raster Data Quality Considerations
+## Raster Data Quality Considerations
 
 **Accuracy**: How close values are to true measurements
 
@@ -150,9 +150,1094 @@ Sample GeoTIFFs for practice (in **`assets/tiff/`** in this repo):
 
 **Lineage**: Documentation of data sources and processing steps
 
-## Raster operations with rasterio (short recipes)
+## Raster bands and spectral indices
 
-The snippets below are **minimal patterns** you can copy into a notebook or script. Paths are placeholders—point them at your own **GeoTIFF** (or other GDAL-readable) files. The longer **Setting up the environment** section that follows uses the same libraries in a full teaching workflow.
+### What are raster bands?
+
+A **raster band** is one layer of values inside a raster dataset.
+
+A raster image may contain **one band** or **multiple bands**.
+
+Each band stores a specific measurement for every pixel.
+
+Examples:
+
+- visible light
+- near infrared
+- shortwave infrared
+- elevation
+- temperature
+
+You can think of bands like stacked layers.
+
+Each layer has:
+
+- same width
+- same height
+- different values
+
+Example:
+
+A satellite image may store:
+
+- **Band 1** → Blue
+- **Band 2** → Green
+- **Band 3** → Red
+- **Band 4** → Near Infrared
+
+The same pixel location will have one value in each band.
+
+Example:
+
+| Pixel location | Blue | Green | Red | NIR |
+|---|---:|---:|---:|---:|
+| Row 1, Col 1 | 34 | 45 | 55 | 120 |
+| Row 1, Col 2 | 30 | 40 | 50 | 115 |
+| Row 2, Col 1 | 32 | 44 | 54 | 118 |
+
+This allows comparison between wavelengths.
+
+---
+
+### Common raster bands
+
+Different satellites may use different band numbers.
+
+Example:
+
+| Band | Name | Common use |
+|---|---|---|
+| 1 | Blue | water, coastline |
+| 2 | Green | vegetation |
+| 3 | Red | plant health |
+| 4 | Near Infrared (NIR) | vegetation analysis |
+| 5 | SWIR 1 | moisture |
+| 6 | SWIR 2 | soil and geology |
+| 7 | Thermal | heat |
+
+---
+
+### Why bands matter
+
+Different land surfaces reflect light differently.
+
+Example:
+
+| Surface | Blue | Red | NIR |
+|---|---:|---:|---:|
+| Water | low | low | very low |
+| Soil | medium | medium | medium |
+| Healthy vegetation | medium | low | high |
+| Built-up | medium | medium | medium-high |
+
+Because of this, we can combine bands mathematically and create **spectral indices**.
+
+---
+
+## What are spectral indices?
+
+A **spectral index** is a formula created using raster bands.
+
+It highlights a specific land condition such as:
+
+- vegetation
+- water
+- soil
+- burned areas
+- urban areas
+
+Indices are calculated **pixel by pixel**.
+
+Result:
+
+- one new raster
+- each pixel stores calculated value
+
+---
+
+## NDVI — Normalized Difference Vegetation Index
+
+NDVI measures **vegetation health**.
+
+Healthy vegetation reflects:
+
+- **high NIR**
+- **low Red**
+
+Formula:
+
+```text
+NDVI = (NIR - Red) / (NIR + Red)
+````
+
+Example:
+
+| Red | NIR |  NDVI |
+| --: | --: | ----: |
+|  40 | 140 |  0.56 |
+|  70 |  75 |  0.03 |
+|  80 |  50 | -0.23 |
+
+Typical NDVI values:
+
+|      NDVI | Meaning                  |
+| --------: | ------------------------ |
+|       < 0 | water / clouds           |
+|   0 – 0.2 | bare soil                |
+| 0.2 – 0.5 | vegetation               |
+|     > 0.5 | dense healthy vegetation |
+
+Uses:
+
+* crop monitoring
+* forest analysis
+* drought detection
+
+---
+
+## EVI — Enhanced Vegetation Index
+
+EVI improves vegetation detection where NDVI may saturate.
+
+It uses:
+
+* NIR
+* Red
+* Blue
+
+Formula:
+
+```text
+EVI = 2.5 × (NIR - Red) / (NIR + 6×Red - 7.5×Blue + 1)
+```
+
+Example:
+
+| Blue | Red | NIR |  EVI |
+| ---: | --: | --: | ---: |
+|   20 |  40 | 140 | 0.63 |
+|   25 |  60 | 100 | 0.31 |
+
+Uses:
+
+* dense vegetation
+* tropical forests
+* crop monitoring
+
+---
+
+## NDWI — Normalized Difference Water Index
+
+NDWI highlights water.
+
+Uses:
+
+* Green
+* NIR
+
+Formula:
+
+```text
+NDWI = (Green - NIR) / (Green + NIR)
+```
+
+Example:
+
+| Green | NIR |  NDWI |
+| ----: | --: | ----: |
+|    80 |  20 |  0.60 |
+|    40 |  90 | -0.38 |
+
+Uses:
+
+* lakes
+* rivers
+* water bodies
+
+---
+
+## NDBI — Normalized Difference Built-up Index
+
+Detects urban and built-up areas.
+
+Uses:
+
+* SWIR
+* NIR
+
+Formula:
+
+```text
+NDBI = (SWIR - NIR) / (SWIR + NIR)
+```
+
+Example:
+
+| SWIR | NIR |  NDBI |
+| ---: | --: | ----: |
+|  130 |  80 |  0.24 |
+|   70 | 120 | -0.26 |
+
+Uses:
+
+* urban growth
+* buildings
+* roads
+
+---
+
+## SAVI — Soil Adjusted Vegetation Index
+
+Improves vegetation detection where soil is visible.
+
+Formula:
+
+```text
+SAVI = ((NIR - Red) / (NIR + Red + L)) × (1 + L)
+```
+
+Usually:
+
+```text
+L = 0.5
+```
+
+Uses:
+
+* agriculture
+* dry areas
+* sparse vegetation
+
+---
+
+## BSI — Bare Soil Index
+
+Highlights exposed soil.
+
+Formula:
+
+```text
+BSI = ((SWIR + Red) - (NIR + Blue)) / ((SWIR + Red) + (NIR + Blue))
+```
+
+Uses:
+
+* barren land
+* soil analysis
+
+---
+
+## Summary
+
+Raster bands store values in separate image layers.
+
+By combining bands using formulas we can create indices.
+
+Common indices:
+
+| Index | Uses              |
+| ----- | ----------------- |
+| NDVI  | vegetation        |
+| EVI   | dense vegetation  |
+| NDWI  | water             |
+| NDBI  | built-up          |
+| SAVI  | soil + vegetation |
+| BSI   | bare soil         |
+
+These indices are widely used in:
+
+* agriculture
+* remote sensing
+* environmental monitoring
+* land use mapping
+* GIS analysis
+
+## Download satellite data (Sentinel-2)
+
+In this section we will learn how to **download satellite imagery from Sentinel-2** using Python and cloud-based geospatial catalogs.
+
+**Sentinel-2** is a satellite mission from the **European Space Agency (ESA)**.
+
+It captures Earth observation imagery useful for:
+
+- vegetation monitoring
+- agriculture
+- land use mapping
+- flood analysis
+- forest monitoring
+- water resources
+- urban growth
+
+Sentinel-2 imagery is freely available and commonly used in GIS and remote sensing.
+
+It provides:
+
+- **10 m resolution** → Blue, Green, Red, NIR
+- **20 m resolution** → Red Edge, SWIR
+- **60 m resolution** → atmospheric bands
+
+Common useful bands:
+
+| Band | Name | Resolution |
+|---|---|---:|
+| B2 | Blue | 10 m |
+| B3 | Green | 10 m |
+| B4 | Red | 10 m |
+| B8 | Near Infrared | 10 m |
+| B11 | SWIR | 20 m |
+| B12 | SWIR | 20 m |
+
+Sentinel-2 data can be downloaded from several cloud catalogs.
+
+A common workflow:
+
+- search imagery by location
+- filter by date
+- filter by cloud cover
+- select required bands
+- load imagery into Python
+- process raster
+
+---
+
+## 1. Microsoft Planetary Computer
+
+**Microsoft Planetary Computer** is a cloud platform that provides access to large public geospatial datasets.
+
+It includes:
+
+- Sentinel-2
+- Landsat
+- DEM datasets
+- climate data
+- land cover
+
+Website:
+
+**https://planetarycomputer.microsoft.com/**
+
+It uses the **STAC (SpatioTemporal Asset Catalog)** standard.
+
+This means we can search data using:
+
+- bounding box
+- geometry
+- date range
+- cloud cover
+- collection name
+
+Example collections:
+
+- `sentinel-2-l2a`
+- `landsat-c2-l2`
+
+Benefits:
+
+- free access
+- cloud hosted
+- fast search
+- no manual downloading needed
+- ready for Python workflows
+
+Typical workflow:
+
+1. open catalog
+2. search Sentinel-2
+3. choose date + area
+4. filter by cloud cover
+5. access raster assets
+
+Useful for:
+
+- satellite analysis
+- time series
+- NDVI
+- agriculture monitoring
+
+---
+
+## 2. PySTAC
+
+**PySTAC** is a Python library for working with **STAC catalogs**.
+
+STAC is a standard format used to describe geospatial datasets.
+
+PySTAC helps read:
+
+- catalogs
+- collections
+- items
+- raster assets
+
+It lets us:
+
+- open STAC catalog
+- search datasets
+- inspect metadata
+- list available bands
+- access image links
+
+Example metadata available:
+
+- acquisition date
+- cloud cover
+- satellite name
+- band URLs
+- projection
+
+Useful for:
+
+- discovering satellite scenes
+- reading metadata
+- selecting imagery
+
+Simple idea:
+
+- **Planetary Computer** stores the data
+- **PySTAC** reads the catalog and metadata
+
+Typical workflow:
+
+1. connect to catalog
+2. search Sentinel-2
+3. read returned items
+4. inspect bands
+5. select image
+
+Useful when:
+
+- browsing scenes
+- checking metadata
+- building automated search
+
+---
+
+## 3. ODC-STAC
+
+**ODC-STAC** stands for:
+
+**Open Data Cube + STAC**
+
+It is a Python library used to **load STAC items directly into analysis-ready arrays**.
+
+While PySTAC helps discover data,
+ODC-STAC helps load it for analysis.
+
+It works well with:
+
+- xarray
+- NumPy
+- Rasterio
+
+It helps us:
+
+- load selected bands
+- clip to area
+- combine scenes
+- stack rasters
+- prepare analysis-ready data
+
+Example uses:
+
+- NDVI calculation
+- cloud filtering
+- time-series analysis
+- mosaics
+
+Typical workflow:
+
+1. search Sentinel-2 using STAC
+2. select items
+3. load bands with ODC-STAC
+4. calculate indices
+5. export results
+
+Benefits:
+
+- fast loading
+- multiple scenes
+- direct analysis
+- works well with raster workflows
+
+---
+
+## Quick comparison
+
+| Tool | Main use |
+|---|---|
+| Microsoft Planetary Computer | cloud catalog + satellite storage |
+| PySTAC | search and read STAC metadata |
+| ODC-STAC | load imagery for analysis |
+
+Simple workflow:
+
+```text
+Microsoft Planetary Computer
+        ↓
+Search Sentinel-2 scenes
+        ↓
+PySTAC reads catalog + metadata
+        ↓
+ODC-STAC loads imagery
+        ↓
+Raster analysis with Python
+```
+
+## Search available Sentinel-2 data
+
+Before downloading satellite imagery, we usually **search available scenes** for our study area.
+
+This helps us:
+
+- check whether imagery exists
+- filter by date
+- filter by cloud cover
+- inspect available scenes
+- choose the best image before loading bands
+
+For Sentinel-2, a common workflow is:
+
+- define study area (GeoJSON)
+- choose start and end date
+- choose maximum cloud cover
+- search catalog
+- inspect results
+- select image
+
+We can search data directly from **Microsoft Planetary Computer** using **PySTAC Client**.
+
+### Install required libraries
+
+```python
+!pip install pystac-client planetary-computer odc-stac geopandas pandas
+```
+
+Libraries used:
+
+- **pystac-client** → search STAC catalog
+- **planetary-computer** → Microsoft Planetary Computer access
+- **odc-stac** → load imagery
+- **geopandas** → vector boundaries
+- **pandas** → tabular results
+
+---
+
+### Search available Sentinel-2 imagery
+
+This program:
+
+- connects to Microsoft Planetary Computer
+- searches Sentinel-2 Level-2A
+- filters by:
+  - polygon boundary
+  - date range
+  - cloud cover
+- returns results as JSON
+
+```python
+"""
+Search Sentinel-2 imagery from Planetary Computer
+and return JSON.
+"""
+
+import json
+from pystac_client import Client
+
+STAC_URL = "https://planetarycomputer.microsoft.com/api/stac/v1"
+
+
+def search_sentinel2(
+    geojson_fc: dict,
+    start_date: str,
+    end_date: str,
+    max_cloud_cover: int = 20,
+):
+    # --------------------------------
+    # convert FeatureCollection → geometry
+    # --------------------------------
+    if geojson_fc["type"] == "FeatureCollection":
+        geometry = geojson_fc["features"][0]["geometry"]
+
+    elif geojson_fc["type"] == "Feature":
+        geometry = geojson_fc["geometry"]
+
+    else:
+        geometry = geojson_fc
+
+    # --------------------------------
+    # connect stac
+    # --------------------------------
+    catalog = Client.open(STAC_URL)
+
+    search = catalog.search(
+        collections=["sentinel-2-l2a"],
+        intersects=geometry,
+        datetime=f"{start_date}/{end_date}",
+        query={
+            "eo:cloud_cover": {
+                "lte": max_cloud_cover
+            }
+        },
+    )
+
+    items = list(search.items())
+
+    # --------------------------------
+    # no results
+    # --------------------------------
+    if not items:
+        return {
+            "count": 0,
+            "results": []
+        }
+
+    # --------------------------------
+    # results
+    # --------------------------------
+    results = []
+
+    for item in items:
+        results.append(
+            {
+                "id": item.id,
+                "date": item.datetime.date().isoformat(),
+                "datetime": item.datetime.isoformat(),
+                "cloud_cover": item.properties.get(
+                    "eo:cloud_cover"
+                ),
+                "product": item.properties.get(
+                    "s2:product_uri"
+                ),
+                "platform": item.properties.get(
+                    "platform"
+                ),
+            }
+        )
+
+    # sort by date
+    results = sorted(
+        results,
+        key=lambda x: x["date"]
+    )
+
+    return {
+        "count": len(results),
+        "results": results,
+    }
+
+
+# --------------------------------
+# Example
+# --------------------------------
+
+geojson_fc = {
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {},
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[
+                    [76.8149, 17.6984],
+                    [76.8131, 17.6972],
+                    [76.8155, 17.6961],
+                    [76.8172, 17.6976],
+                    [76.8149, 17.6984],
+                ]],
+            },
+        }
+    ],
+}
+
+data = search_sentinel2(
+    geojson_fc=geojson_fc,
+    start_date="2025-12-01",
+    end_date="2025-12-31",
+    max_cloud_cover=15,
+)
+
+print(json.dumps(data, indent=2))
+```
+
+### Example output
+
+```json
+{
+  "count": 2,
+  "results": [
+    {
+      "id": "S2A_MSIL2A_20251212T052201",
+      "date": "2025-12-12",
+      "datetime": "2025-12-12T05:22:01+00:00",
+      "cloud_cover": 8.2,
+      "product": "S2A_MSIL2A_20251212T052201",
+      "platform": "sentinel-2a"
+    },
+    {
+      "id": "S2B_MSIL2A_20251222T052201",
+      "date": "2025-12-22",
+      "datetime": "2025-12-22T05:22:01+00:00",
+      "cloud_cover": 12.6,
+      "product": "S2B_MSIL2A_20251222T052201",
+      "platform": "sentinel-2b"
+    }
+  ]
+}
+```
+
+### Result fields
+
+| Field | Meaning |
+|---|---|
+| `id` | Sentinel scene id |
+| `date` | image date |
+| `datetime` | exact capture time |
+| `cloud_cover` | cloud percentage |
+| `product` | product name |
+| `platform` | Sentinel satellite |
+
+### Summary
+
+Searching Sentinel-2 before downloading helps us:
+
+- find available imagery
+- filter low-cloud scenes
+- compare dates
+- select the best image
+
+Typical workflow:
+
+```text
+GeoJSON study area
+        ↓
+Search Sentinel-2
+        ↓
+Check cloud cover
+        ↓
+Choose best scene
+        ↓
+Load raster bands
+        ↓
+Calculate NDVI / analysis
+```
+
+## Download NDVI or EVI GeoTIFF from Sentinel-2
+
+After searching available Sentinel-2 scenes, the next step is to **download raster bands and calculate vegetation indices**.
+
+In this example we:
+
+- use a GeoJSON polygon as study area
+- select one Sentinel-2 scene using `item_id`
+- load required bands
+- calculate:
+  - **NDVI**
+  - or **EVI**
+- clip result exactly to polygon
+- save output as GeoTIFF
+
+This workflow is useful for:
+
+- crop monitoring
+- vegetation health
+- remote sensing analysis
+- agricultural GIS workflows
+
+### Install required libraries
+
+```python
+!pip install pystac-client planetary-computer odc-stac geopandas pandas rasterio rioxarray
+```
+
+Libraries used:
+
+- **pystac-client** → search STAC catalog
+- **planetary-computer** → sign asset URLs
+- **odc-stac** → load raster bands
+- **rasterio** → raster handling
+- **rioxarray** → clipping + export
+
+---
+
+### Download clipped NDVI or EVI
+
+This function:
+
+- accepts GeoJSON
+- accepts Sentinel-2 item id
+- calculates NDVI or EVI
+- clips raster
+- saves GeoTIFF
+
+```python
+import numpy as np
+import rasterio
+from shapely.geometry import shape
+from pystac_client import Client
+import planetary_computer as pc
+from odc.stac import load
+import rioxarray
+
+
+STAC_URL = "https://planetarycomputer.microsoft.com/api/stac/v1"
+
+
+def download_clipped_index_tiff(
+    geojson_data: dict,
+    item_id: str,
+    index: str,
+    output_path: str,
+):
+    """
+    Download clipped Sentinel-2 NDVI/EVI GeoTIFF.
+
+    Parameters
+    ----------
+    geojson_data : dict
+    item_id : str
+    index : str ("ndvi" or "evi")
+    output_path : str
+    """
+
+    # ---------------------------------
+    # geometry
+    # ---------------------------------
+    if geojson_data["type"] == "FeatureCollection":
+        geom_geojson = geojson_data["features"][0]["geometry"]
+    elif geojson_data["type"] == "Feature":
+        geom_geojson = geojson_data["geometry"]
+    else:
+        geom_geojson = geojson_data
+
+    geom = shape(geom_geojson)
+
+    # ---------------------------------
+    # stac search by id
+    # ---------------------------------
+    client = Client.open(
+        STAC_URL,
+        modifier=pc.sign_inplace,
+    )
+
+    search = client.search(
+        collections=["sentinel-2-l2a"],
+        ids=[item_id],
+    )
+
+    items = list(search.items())
+
+    if not items:
+        raise ValueError(
+            f"No item found for {item_id}"
+        )
+
+    signed_items = [
+        pc.sign(item)
+        for item in items
+    ]
+
+    # ---------------------------------
+    # required bands
+    # ---------------------------------
+    bands = ["B04", "B08"]
+
+    if index.lower() == "evi":
+        bands.append("B02")
+
+    # ---------------------------------
+    # load clipped to polygon
+    # ---------------------------------
+    ds = load(
+        items=signed_items,
+        geopolygon=geom,
+        groupby="solar_day",
+        bands=bands,
+    )
+
+    # exact polygon clip
+    ds = ds.rio.clip(
+        [geom],
+        crs="EPSG:4326",
+    )
+
+    # ---------------------------------
+    # calculate index
+    # ---------------------------------
+    red = ds["B04"]
+    nir = ds["B08"]
+
+    if index.lower() == "ndvi":
+        result = (
+            (nir - red)
+            / (nir + red + 1e-6)
+        )
+
+    elif index.lower() == "evi":
+        blue = ds["B02"]
+
+        result = (
+            2.5
+            * (nir - red)
+            / (
+                nir
+                + 6 * red
+                - 7.5 * blue
+                + 1
+            )
+        )
+
+    else:
+        raise ValueError(
+            "Supported: ndvi or evi"
+        )
+
+    # first image only
+    result = result.isel(time=0)
+
+    # ---------------------------------
+    # save
+    # ---------------------------------
+    result.rio.to_raster(output_path)
+
+    return {
+        "status": "success",
+        "item_id": item_id,
+        "index": index,
+        "output": output_path,
+    }
+
+
+# -------------------------------------
+# Example
+# -------------------------------------
+
+res = download_clipped_index_tiff(
+    geojson_data=geojson_fc,
+    item_id="S2C_MSIL2A_20251204T053221_R105_T43QDF_20251204T091915",
+    index="ndvi",
+    output_path="/content/ndvi_clip.tif",
+)
+
+print(res)
+```
+
+---
+
+### Example output
+
+```python
+{
+    "status": "success",
+    "item_id": "S2C_MSIL2A_20251204T053221_R105_T43QDF_20251204T091915",
+    "index": "ndvi",
+    "output": "/content/ndvi_clip.tif"
+}
+```
+
+---
+
+### Supported indices
+
+| Index | Bands used | Formula |
+|---|---|---|
+| NDVI | NIR + Red | `(NIR - Red) / (NIR + Red)` |
+| EVI | NIR + Red + Blue | `2.5 × (NIR - Red) / (NIR + 6×Red - 7.5×Blue + 1)` |
+
+---
+
+### Sentinel-2 bands used
+
+| Band | Name | Resolution |
+|---|---|---:|
+| B02 | Blue | 10 m |
+| B04 | Red | 10 m |
+| B08 | Near Infrared | 10 m |
+
+---
+
+### Parameters
+
+| Parameter | Meaning |
+|---|---|
+| `geojson_data` | study area polygon |
+| `item_id` | Sentinel-2 scene id |
+| `index` | `"ndvi"` or `"evi"` |
+| `output_path` | output GeoTIFF location |
+
+---
+
+### Workflow summary
+
+```text
+GeoJSON study area
+        ↓
+Search Sentinel-2
+        ↓
+Choose item_id
+        ↓
+Load bands
+        ↓
+Calculate NDVI / EVI
+        ↓
+Clip to polygon
+        ↓
+Save GeoTIFF
+```
+
+### Result
+
+The output file is a clipped raster GeoTIFF.
+
+It can be used in:
+
+- QGIS
+- Rasterio
+- GeoPandas workflows
+- agricultural analysis
+- vegetation monitoring
+
+
+## What is Rasterio?
+
+**Rasterio** is a Python library used to work with **raster geospatial data** such as satellite images, elevation maps, land cover maps, and other grid-based datasets.
+
+Raster data stores information in the form of **rows and columns of pixels**, where each pixel contains a value. These values may represent things like color, height, temperature, rainfall, or vegetation.
+
+Rasterio provides a simple Python interface to open, read, analyze, and write raster files. It is built on top of **GDAL** and is designed specifically for geospatial raster processing.
+
+With Rasterio we can:
+
+- read raster files such as **GeoTIFF**
+- check raster metadata
+- access pixel values
+- crop rasters
+- mask rasters using vector boundaries
+- save processed raster files
+
+Rasterio works well with:
+
+- **NumPy** for raster calculations
+- **GeoPandas** for vector data
+- **Shapely** for geometry operations
+
+In simple terms:
+
+- **Shapely** works with geometry
+- **GeoPandas** works with vector layers
+- **Rasterio** works with raster grids
+
+Rasterio is widely used in GIS and remote sensing for tasks such as:
+
+- satellite image analysis
+- digital elevation model processing
+- raster clipping
+- land use classification
+- environmental monitoring
+
+In short:
+
+**Rasterio is a Python GIS library used to read, analyze, and write raster geospatial data.**
 
 ### 1. Open and read a raster file
 
