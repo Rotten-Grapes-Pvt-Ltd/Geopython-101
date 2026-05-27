@@ -921,6 +921,311 @@ Load raster bands
         ↓
 Calculate NDVI / analysis
 ```
+## Download clipped raw Sentinel-2 bands
+
+Sometimes we need the **original satellite bands** instead of calculated indices.
+
+Raw bands are useful for:
+
+- NDVI / EVI calculation
+- RGB image creation
+- false color composites
+- land cover analysis
+- water detection
+- remote sensing workflows
+
+In this example we will:
+
+- use a GeoJSON polygon
+- select one Sentinel-2 scene
+- load required bands
+- clip exactly to polygon
+- save each band as a separate GeoTIFF
+
+This gives us **raw clipped raster bands** ready for GIS analysis.
+
+---
+
+### Install required libraries
+
+```python
+!pip install pystac-client planetary-computer odc-stac geopandas pandas rasterio rioxarray
+```
+
+Libraries used:
+
+- **pystac-client** → search STAC catalog
+- **planetary-computer** → sign URLs
+- **odc-stac** → load raster bands
+- **rasterio** → raster processing
+- **rioxarray** → clip + export
+
+---
+
+### Download clipped raw bands
+
+This function:
+
+- accepts GeoJSON polygon
+- accepts Sentinel-2 item id
+- accepts list of bands
+- clips raster
+- saves TIFF files
+
+```python
+import os
+import rasterio
+from shapely.geometry import shape
+from pystac_client import Client
+import planetary_computer as pc
+from odc.stac import load
+import rioxarray
+
+
+STAC_URL = "https://planetarycomputer.microsoft.com/api/stac/v1"
+
+
+def download_clipped_raw_bands(
+    geojson_data: dict,
+    item_id: str,
+    bands: list,
+    output_dir: str,
+):
+    """
+    Download clipped raw Sentinel-2 bands.
+
+    Parameters
+    ----------
+    geojson_data : dict
+        GeoJSON Polygon / Feature / FeatureCollection
+
+    item_id : str
+        Sentinel-2 item id
+
+    bands : list
+        Example:
+        ["B02", "B03", "B04", "B08"]
+
+    output_dir : str
+        Folder to save TIFFs
+    """
+
+    # --------------------------
+    # geometry
+    # --------------------------
+    if geojson_data["type"] == "FeatureCollection":
+        geom_geojson = geojson_data["features"][0]["geometry"]
+
+    elif geojson_data["type"] == "Feature":
+        geom_geojson = geojson_data["geometry"]
+
+    else:
+        geom_geojson = geojson_data
+
+    geom = shape(geom_geojson)
+
+    # --------------------------
+    # stac
+    # --------------------------
+    client = Client.open(
+        STAC_URL,
+        modifier=pc.sign_inplace,
+    )
+
+    search = client.search(
+        collections=["sentinel-2-l2a"],
+        ids=[item_id],
+    )
+
+    items = list(search.items())
+
+    if not items:
+        raise ValueError(
+            f"No item found for {item_id}"
+        )
+
+    signed_items = [
+        pc.sign(item)
+        for item in items
+    ]
+
+    # --------------------------
+    # load only required bands
+    # --------------------------
+    ds = load(
+        items=signed_items,
+        geopolygon=geom,
+        groupby="solar_day",
+        bands=bands,
+    )
+
+    # exact polygon clip
+    ds = ds.rio.clip(
+        [geom],
+        crs="EPSG:4326",
+    )
+
+    # first image only
+    ds = ds.isel(time=0)
+
+    # create folder
+    os.makedirs(
+        output_dir,
+        exist_ok=True,
+    )
+
+    saved_files = []
+
+    # --------------------------
+    # save each band
+    # --------------------------
+    for band in bands:
+
+        output_path = os.path.join(
+            output_dir,
+            f"{band}.tif",
+        )
+
+        ds[band].rio.to_raster(
+            output_path
+        )
+
+        saved_files.append(
+            output_path
+        )
+
+    return {
+        "status": "success",
+        "item_id": item_id,
+        "bands": bands,
+        "files": saved_files,
+    }
+
+
+# -----------------------------------
+# Example
+# -----------------------------------
+
+res = download_clipped_raw_bands(
+    geojson_data=geojson_fc,
+    item_id="S2C_MSIL2A_20251214T053241_R105_T43QDF_20251214T090710",
+    bands=[
+        "B02",
+        "B03",
+        "B04",
+        "B08",
+    ],
+    output_dir="/content/raw_bands",
+)
+
+print(res)
+```
+
+---
+
+### Example output
+
+```python
+{
+    "status": "success",
+    "item_id": "S2C_MSIL2A_20251214T053241_R105_T43QDF_20251214T090710",
+    "bands": [
+        "B02",
+        "B03",
+        "B04",
+        "B08"
+    ],
+    "files": [
+        "/content/raw_bands/B02.tif",
+        "/content/raw_bands/B03.tif",
+        "/content/raw_bands/B04.tif",
+        "/content/raw_bands/B08.tif"
+    ]
+}
+```
+
+---
+
+### Common Sentinel-2 bands
+
+| Band | Name | Resolution | Use |
+|---|---|---:|---|
+| B02 | Blue | 10 m | water / coast |
+| B03 | Green | 10 m | vegetation |
+| B04 | Red | 10 m | NDVI |
+| B08 | NIR | 10 m | vegetation |
+| B11 | SWIR | 20 m | moisture |
+| B12 | SWIR | 20 m | soil |
+
+---
+
+### Example band combinations
+
+RGB true color:
+
+```text
+B04 + B03 + B02
+```
+
+False color vegetation:
+
+```text
+B08 + B04 + B03
+```
+
+NDVI:
+
+```text
+B08 + B04
+```
+
+EVI:
+
+```text
+B08 + B04 + B02
+```
+
+---
+
+### Parameters
+
+| Parameter | Meaning |
+|---|---|
+| `geojson_data` | study area polygon |
+| `item_id` | Sentinel scene id |
+| `bands` | list of bands |
+| `output_dir` | folder to save TIFFs |
+
+---
+
+### Workflow summary
+
+```text
+GeoJSON study area
+        ↓
+Search Sentinel-2
+        ↓
+Choose item_id
+        ↓
+Select bands
+        ↓
+Load raster
+        ↓
+Clip polygon
+        ↓
+Save each TIFF
+```
+
+### Result
+
+Output files can be used in:
+
+- QGIS
+- Rasterio
+- NumPy
+- NDVI calculation
+- RGB rendering
+- remote sensing analysis
 
 ## Download NDVI or EVI GeoTIFF from Sentinel-2
 
@@ -1197,6 +1502,495 @@ It can be used in:
 - agricultural analysis
 - vegetation monitoring
 
+## Download LULC GeoTIFF from Sentinel-2
+
+Along with downloading raster bands and vegetation indices, we can also create a simple **Land Use / Land Cover (LULC)** raster.
+
+LULC helps classify land into categories such as:
+
+- water
+- built-up area
+- barren/open soil
+- sparse vegetation
+- dense vegetation
+
+In this example we:
+
+- use a GeoJSON polygon
+- search Sentinel-2 scenes
+- filter by date and cloud cover
+- create a cloud-free composite
+- calculate indices
+- classify land cover
+- clip exactly to polygon
+- save output as GeoTIFF
+
+This workflow is useful for:
+
+- land use mapping
+- agriculture monitoring
+- vegetation analysis
+- urban growth
+- GIS raster classification
+
+### Install required libraries
+
+```python
+!pip install pystac-client planetary-computer odc-stac geopandas pandas rasterio rioxarray scipy
+```
+
+Libraries used:
+
+- **pystac-client** → search STAC
+- **planetary-computer** → sign imagery
+- **odc-stac** → load raster bands
+- **geopandas** → polygon handling
+- **rasterio** → save raster
+- **rioxarray** → clipping
+- **scipy** → smoothing filter
+
+---
+
+### Download LULC raster
+
+This function:
+
+- searches Sentinel-2
+- removes clouds
+- creates median composite
+- calculates:
+  - NDVI
+  - NDBI
+  - MNDWI
+- classifies pixels
+- saves LULC GeoTIFF
+
+```python
+import numpy as np
+import rasterio
+import geopandas as gpd
+from shapely.geometry import shape
+from rasterio.mask import mask as rio_mask
+from pystac_client import Client
+import planetary_computer as pc
+from odc.stac import load
+from scipy.ndimage import median_filter
+
+
+STAC_URL = "https://planetarycomputer.microsoft.com/api/stac/v1"
+
+
+def download_lulc_tiff(
+    geojson_data: dict,
+    date_range: str,
+    cloud_cover: int,
+    output_path: str,
+    max_items: int = 10,
+    resolution: int = 20,
+):
+    """
+    Download clipped Sentinel-2 LULC GeoTIFF.
+
+    Classes
+    -------
+    0 -> Water
+    1 -> Built-up
+    2 -> Barren/Open soil
+    3 -> Sparse vegetation
+    4 -> Dense vegetation
+    255 -> NoData
+    """
+
+    # --------------------------------
+    # geometry
+    # --------------------------------
+    if geojson_data["type"] == "FeatureCollection":
+        geom_geojson = geojson_data["features"][0]["geometry"]
+
+    elif geojson_data["type"] == "Feature":
+        geom_geojson = geojson_data["geometry"]
+
+    else:
+        geom_geojson = geojson_data
+
+    geom = shape(geom_geojson)
+
+    gdf = gpd.GeoDataFrame(
+        geometry=[geom],
+        crs="EPSG:4326",
+    )
+
+    bbox = tuple(gdf.total_bounds)
+
+    utm_crs = gdf.estimate_utm_crs()
+
+    # --------------------------------
+    # search stac
+    # --------------------------------
+    client = Client.open(STAC_URL)
+
+    search = client.search(
+        collections=["sentinel-2-l2a"],
+        intersects=geom.__geo_interface__,
+        datetime=date_range,
+        query={
+            "eo:cloud_cover": {
+                "lt": cloud_cover
+            }
+        },
+    )
+
+    items = sorted(
+        search.items(),
+        key=lambda x: x.properties.get(
+            "eo:cloud_cover",
+            100,
+        ),
+    )[:max_items]
+
+    if not items:
+        raise ValueError(
+            "No scenes found"
+        )
+
+    signed_items = [
+        pc.sign(item)
+        for item in items
+    ]
+
+    # --------------------------------
+    # load bands
+    # --------------------------------
+    ds = load(
+        items=signed_items,
+        bands=[
+            "B02",
+            "B03",
+            "B04",
+            "B08",
+            "B11",
+            "SCL",
+        ],
+        crs=utm_crs,
+        resolution=resolution,
+        bbox=bbox,
+        groupby="solar_day",
+    )
+
+    # --------------------------------
+    # cloud mask
+    # --------------------------------
+    scl = ds["SCL"]
+
+    cloud_mask = scl.isin(
+        [1, 3, 8, 9, 10, 11]
+    )
+
+    blue = ds["B02"].where(
+        ~cloud_mask
+    ).astype("float32")
+
+    green = ds["B03"].where(
+        ~cloud_mask
+    ).astype("float32")
+
+    red = ds["B04"].where(
+        ~cloud_mask
+    ).astype("float32")
+
+    nir = ds["B08"].where(
+        ~cloud_mask
+    ).astype("float32")
+
+    swir = ds["B11"].where(
+        ~cloud_mask
+    ).astype("float32")
+
+    # median composite
+    blue = blue.median(dim="time")
+    green = green.median(dim="time")
+    red = red.median(dim="time")
+    nir = nir.median(dim="time")
+    swir = swir.median(dim="time")
+
+    # --------------------------------
+    # indices
+    # --------------------------------
+    def safe_index(a, b):
+        denom = a + b
+
+        return np.where(
+            denom == 0,
+            np.nan,
+            (a - b) / denom,
+        )
+
+    b = blue.values
+    g = green.values
+    r = red.values
+    n = nir.values
+    s = swir.values
+
+    ndvi = safe_index(n, r)
+
+    ndbi = safe_index(s, n)
+
+    mndwi = safe_index(g, s)
+
+    # --------------------------------
+    # classification
+    # --------------------------------
+    lulc = np.full(
+        ndvi.shape,
+        255,
+        dtype=np.uint8,
+    )
+
+    valid = (
+        np.isfinite(ndvi)
+        & np.isfinite(ndbi)
+        & np.isfinite(mndwi)
+    )
+
+    water = (
+        valid
+        & (mndwi > 0.1)
+        & (mndwi > ndvi)
+    )
+    lulc[water] = 0
+
+    dense_veg = (
+        valid
+        & ~water
+        & (ndvi > 0.5)
+    )
+    lulc[dense_veg] = 4
+
+    sparse_veg = (
+        valid
+        & ~water
+        & ~dense_veg
+        & (ndvi >= 0.2)
+        & (ndvi <= 0.5)
+    )
+    lulc[sparse_veg] = 3
+
+    builtup = (
+        valid
+        & ~water
+        & ~dense_veg
+        & ~sparse_veg
+        & (ndbi > 0)
+        & (ndvi < 0.2)
+    )
+
+    lulc[builtup] = 1
+
+    barren = (
+        valid
+        & (lulc == 255)
+    )
+
+    lulc[barren] = 2
+
+    # --------------------------------
+    # smoothing
+    # --------------------------------
+    filtered = median_filter(
+        lulc,
+        size=3,
+    )
+
+    filtered[
+        lulc == 255
+    ] = 255
+
+    lulc = filtered
+
+    # --------------------------------
+    # save temp
+    # --------------------------------
+    geobox = ds.odc.geobox
+
+    temp_path = (
+        output_path
+        + ".tmp.tif"
+    )
+
+    with rasterio.open(
+        temp_path,
+        "w",
+        driver="GTiff",
+        height=lulc.shape[0],
+        width=lulc.shape[1],
+        count=1,
+        dtype=rasterio.uint8,
+        crs=geobox.crs,
+        transform=geobox.transform,
+        nodata=255,
+    ) as dst:
+        dst.write(
+            lulc,
+            1,
+        )
+
+    # --------------------------------
+    # exact clip
+    # --------------------------------
+    gdf_utm = gdf.to_crs(
+        utm_crs
+    )
+
+    geom_utm = (
+        gdf_utm.geometry.values[0]
+    )
+
+    with rasterio.open(
+        temp_path
+    ) as src:
+
+        clipped, transform = rio_mask(
+            src,
+            [geom_utm.__geo_interface__],
+            crop=True,
+            nodata=255,
+        )
+
+        meta = src.meta.copy()
+
+    meta.update(
+        {
+            "height": clipped.shape[1],
+            "width": clipped.shape[2],
+            "transform": transform,
+            "nodata": 255,
+        }
+    )
+
+    with rasterio.open(
+        output_path,
+        "w",
+        **meta,
+    ) as dst:
+        dst.write(
+            clipped[0],
+            1,
+        )
+
+    return {
+        "status": "success",
+        "date_range": date_range,
+        "cloud_cover": cloud_cover,
+        "output": output_path,
+        "classes": {
+            0: "Water",
+            1: "Built-up",
+            2: "Barren",
+            3: "Sparse vegetation",
+            4: "Dense vegetation",
+            255: "NoData",
+        },
+    }
+```
+
+---
+
+### Example
+
+```python
+geojson_fc = {
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {},
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [73.658151, 20.034861],
+          [73.658151, 19.977499],
+          [73.771634, 19.977499],
+          [73.771634, 20.034861],
+          [73.658151, 20.034861]
+        ]]
+      }
+    }
+  ]
+}
+
+res = download_lulc_tiff(
+    geojson_data=geojson_fc,
+    date_range="2025-01-01/2025-03-31",
+    cloud_cover=20,
+    output_path="/content/lulc_2025.tif",
+)
+
+print(res)
+```
+
+---
+
+### LULC classes
+
+| Value | Class |
+|---:|---|
+| 0 | Water |
+| 1 | Built-up |
+| 2 | Barren/Open soil |
+| 3 | Sparse vegetation |
+| 4 | Dense vegetation |
+| 255 | NoData |
+
+---
+
+### Indices used
+
+| Index | Purpose |
+|---|---|
+| NDVI | vegetation |
+| NDBI | built-up |
+| MNDWI | water |
+
+---
+
+### Workflow summary
+
+```text
+GeoJSON polygon
+        ↓
+Search Sentinel-2
+        ↓
+Filter cloud cover
+        ↓
+Load bands
+        ↓
+Cloud mask
+        ↓
+Median composite
+        ↓
+Calculate indices
+        ↓
+Classify pixels
+        ↓
+Clip polygon
+        ↓
+Save GeoTIFF
+```
+
+### Result
+
+Output can be opened in:
+
+- QGIS
+- Rasterio
+- GIS software
+
+Useful for:
+
+- land cover mapping
+- agriculture
+- vegetation monitoring
+- urban analysis
 
 ## What is Rasterio?
 
